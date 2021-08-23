@@ -2,7 +2,7 @@
 use mongodb::bson::{doc, document::Document};
 //use mongodb::{options::ClientOptions, options::FindOptions, Client, Collection};
 use crate::error::MyError;
-use mongodb::{options::ClientOptions, Client};
+use mongodb::{options::ClientOptions, options::ListDatabasesOptions, Client};
 //use serde::{Deserialize, Serialize};
 use futures::StreamExt;
 //use clap::ArgMatches;
@@ -204,13 +204,28 @@ impl DB {
         log::debug!("Getting index stats");
 
         let mut commands = Vec::new();
-
         let command = doc! { "$indexStats": {}};
         commands.push(command);
 
         match self.aggregate(database, collection, commands).await {
             Ok(output) => {
                 log::debug!("Successfully got IndexStats");
+                Ok(output)
+            }
+            Err(e) => {
+                log::error!("Got error {}", e);
+                Err(MyError::MongodbError)
+            }
+        }
+    }
+
+    pub async fn databases(&self) -> Result<Vec<String>> {
+        log::debug!("Getting databases");
+        let options = ListDatabasesOptions::builder().authorized_databases(Some(false)).build();
+
+        match self.client.list_database_names(None, options).await {
+            Ok(output) => {
+                log::debug!("Successfully got databases");
                 Ok(output)
             }
             Err(e) => {
