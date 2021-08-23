@@ -32,16 +32,6 @@ async fn main() -> Result<()> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("db")
-                .short("d")
-                .long("db")
-                .required(true)
-                .value_name("MONGODB_DB")
-                .env("MONGODB_DB")
-                .help("MongoDB Database")
-                .takes_value(true),
-        )
-        .arg(
             Arg::with_name("port")
                 .short("p")
                 .long("port")
@@ -78,13 +68,12 @@ async fn main() -> Result<()> {
 
     // Read in config file
     let url = &opts.value_of("uri").unwrap();
-    let db = &opts.value_of("db").unwrap();
     let port: u16 = opts.value_of("port").unwrap().parse().unwrap_or_else(|_| {
         eprintln!("specified port isn't in a valid range, setting to 8080");
         8080
     });
 
-    let db = DB::init(&url, &db).await?;
+    let db = DB::init(&url).await?;
     let addr = ([0, 0, 0, 0], port).into();
     let service = make_service_fn(move |_| {
         let opts = opts.clone();

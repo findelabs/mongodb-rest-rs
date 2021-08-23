@@ -10,7 +10,10 @@ pub enum MyError {
     MongodbError,
     UrlParseError,
     BsonError,
-    ReadOnly,
+//    ReadOnly,
+    MissingDatabase,
+    MissingCollection,
+    MissingOperation
 }
 
 impl std::error::Error for MyError {}
@@ -24,7 +27,10 @@ impl fmt::Display for MyError {
             MyError::MongodbError => f.write_str("MongoDB Error"),
             MyError::UrlParseError => f.write_str("Failed to parse url Error"),
             MyError::BsonError => f.write_str("Could not parse as bson doc"),
-            MyError::ReadOnly=> f.write_str("Running in read only mode"),
+//            MyError::ReadOnly=> f.write_str("Running in read only mode"),
+            MyError::MissingDatabase=> f.write_str("Missing database in uri"),
+            MyError::MissingCollection=> f.write_str("Missing collection in uri"),
+            MyError::MissingOperation=> f.write_str("Missing operation in uri"),
         }
     }
 }
