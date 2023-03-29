@@ -4,7 +4,9 @@ use axum::{
     response::IntoResponse,
     Extension, Json,
 };
+use bson::Document;
 use clap::{crate_description, crate_name, crate_version};
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::Value;
 
@@ -14,6 +16,55 @@ use crate::State;
 // This is required in order to get the method from the request
 #[derive(Debug)]
 pub struct RequestMethod(pub hyper::Method);
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct FindOne {
+    pub filter: Document,
+    pub projection: Option<Document>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Find {
+    pub filter: Document,
+    pub projection: Option<Document>,
+    pub sort: Option<Document>,
+    pub limit: Option<i64>,
+    pub skip: Option<u64>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Aggregate {
+    pub pipeline: Vec<Document>,
+}
+
+pub async fn aggregate(
+    Extension(state): Extension<State>,
+    Path((db, coll)): Path<(String, String)>,
+    Json(payload): Json<Aggregate>,
+) -> Result<Json<Value>, RestError> {
+    log::info!("{{\"fn\": \"find_one\", \"method\":\"post\"}}");
+    Ok(Json(json!(
+        state.db.aggregate(&db, &coll, payload.pipeline).await?
+    )))
+}
+
+pub async fn find(
+    Extension(state): Extension<State>,
+    Path((db, coll)): Path<(String, String)>,
+    Json(payload): Json<Find>,
+) -> Result<Json<Value>, RestError> {
+    log::info!("{{\"fn\": \"find_one\", \"method\":\"post\"}}");
+    Ok(Json(json!(state.db.find(&db, &coll, payload).await?)))
+}
+
+pub async fn find_one(
+    Extension(state): Extension<State>,
+    Path((db, coll)): Path<(String, String)>,
+    Json(payload): Json<FindOne>,
+) -> Result<Json<Value>, RestError> {
+    log::info!("{{\"fn\": \"find_one\", \"method\":\"post\"}}");
+    Ok(Json(json!(state.db.find_one(&db, &coll, payload).await?)))
+}
 
 pub async fn rs_status(Extension(state): Extension<State>) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"rs_status\", \"method\":\"get\"}}");

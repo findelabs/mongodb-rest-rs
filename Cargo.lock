@@ -1321,8 +1321,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "mongodb-rest"
-version = "0.2.0"
+name = "mongodb-rest-rs"
+version = "0.2.1"
 dependencies = [
  "axum 0.6.12",
  "axum-extra",

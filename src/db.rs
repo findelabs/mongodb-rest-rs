@@ -2,7 +2,10 @@ use crate::error::Error as RestError;
 use bson::Bson;
 use futures::StreamExt;
 use mongodb::bson::{doc, document::Document};
+use mongodb::options::{FindOneOptions, FindOptions};
 use mongodb::{options::ClientOptions, options::ListDatabasesOptions, Client};
+
+use crate::handlers::{Find, FindOne};
 
 #[derive(Clone, Debug)]
 pub struct DB {
@@ -19,6 +22,78 @@ impl DB {
         Ok(Self {
             client: Client::with_options(client_options)?,
         })
+    }
+
+    pub async fn find(
+        &self,
+        database: &str,
+        collection: &str,
+        payload: Find,
+    ) -> Result<Vec<Document>> {
+        // Log which collection this is going into
+        log::debug!("Searching {}.{}", database, collection);
+
+        let mut find_options = FindOptions::builder().build();
+
+        find_options.projection = payload.projection;
+        find_options.sort = payload.sort;
+        find_options.limit = payload.limit;
+        find_options.skip = payload.skip;
+
+        let collection = self
+            .client
+            .database(database)
+            .collection::<Document>(collection);
+        let mut cursor = collection.find(payload.filter, find_options).await?;
+
+        let mut result: Vec<Document> = Vec::new();
+        while let Some(doc) = cursor.next().await {
+            match doc {
+                Ok(converted) => result.push(converted),
+                Err(e) => {
+                    log::error!("Caught error, skipping: {}", e);
+                    continue;
+                }
+            }
+        }
+        let result = result.into_iter().rev().collect();
+        Ok(result)
+    }
+
+    pub async fn find_one(
+        &self,
+        database: &str,
+        collection: &str,
+        payload: FindOne,
+    ) -> Result<Document> {
+        log::debug!("Searching {}.{}", database, collection);
+
+        let find_one_options = match payload.projection {
+            Some(p) => Some(FindOneOptions::builder().projection(p).build()),
+            None => None,
+        };
+
+        let collection = self
+            .client
+            .database(database)
+            .collection::<Document>(collection);
+
+        match collection.find_one(payload.filter, find_one_options).await {
+            Ok(result) => match result {
+                Some(doc) => {
+                    log::debug!("Found a result");
+                    Ok(doc)
+                }
+                None => {
+                    log::debug!("No results found");
+                    Ok(doc! { "msg": "no results found" })
+                }
+            },
+            Err(e) => {
+                log::error!("Error searching mongodb: {}", e);
+                return Err(e)?;
+            }
+        }
     }
 
     pub async fn aggregate(
