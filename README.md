@@ -15,3 +15,48 @@ Options:
   -h, --help         Print help
   -V, --version      Print version
 ```
+
+### Future
+```
+# Post
+{}
+
+# FindOne
+{
+  "filter": {},
+  "projection": {}
+}
+
+# Find
+{
+  "filter": {},
+  "projection": {},
+  "sort": {},
+  "limit": u64,
+  "skip": u64
+}
+
+# Update/UpdateOne
+{
+  "filter": {},
+  "update": {},
+  "upsert": bool
+}
+
+# ReplaceOne
+{
+  "filter": {},
+  "replacement": {},
+  "upsert": bool
+}
+
+# DeleteOne/Delete
+{
+  "filter": {}
+}
+
+# Aggregate
+{
+  "pipeline": [{}]
+}
+```
