@@ -1,11 +1,33 @@
 use crate::error::Error as RestError;
 use bson::Bson;
 use futures::StreamExt;
-use mongodb::bson::{doc, document::Document};
+use mongodb::bson::{to_bson, doc, document::Document, to_document};
 use mongodb::options::{FindOneOptions, FindOptions};
 use mongodb::{options::ClientOptions, options::ListDatabasesOptions, Client};
+use serde::{Deserialize, Serialize};
 
 use crate::handlers::{Find, FindOne};
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Explain {
+    pub explain: Document,
+    pub verbosity: String,
+    pub comment: String
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct FindRaw {
+    pub find: String,
+    pub filter: Document,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sort: Option<Document>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub projection: Option<Document>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub skip: Option<u64>,
+}
 
 #[derive(Clone, Debug)]
 pub struct DB {
@@ -17,11 +39,55 @@ type Result<T> = std::result::Result<T, RestError>;
 impl DB {
     pub async fn init(url: &str) -> Result<Self> {
         let mut client_options = ClientOptions::parse(url).await?;
-        client_options.app_name = Some("json-bucket".to_string());
+        client_options.app_name = Some("mongodb-rest-rs".to_string());
 
         Ok(Self {
             client: Client::with_options(client_options)?,
         })
+    }
+
+    pub async fn find_explain(
+        &self,
+        database: &str,
+        collection: &str,
+        payload: Find,
+    ) -> Result<Vec<Document>> {
+        // Log which collection this is going into
+        log::debug!("Explaining search in {}.{}", database, collection);
+
+        let find_raw = FindRaw {
+            find: collection.to_string(),
+            filter: payload.filter.clone(),
+            sort: payload.sort.clone(),
+            projection: payload.projection.clone(),
+            limit: payload.limit.clone(),
+            skip: payload.skip.clone()
+        };
+
+        let command = Explain {
+            explain: to_document(&find_raw)?,
+            verbosity: payload.explain.unwrap(),
+            comment: "mongodb-rest-rs explain".to_string()
+        };
+
+        let db = self
+            .client
+            .database(database);
+
+        match db.run_command(to_document(&command)?, None).await {
+            Ok(mut c) => {
+                log::debug!("Successfully ran explain in {}.{}", database, collection);
+//                let bson = to_bson(&c)?;
+//                let relaxed = to_document(&bson.into_relaxed_extjson())?;
+//                Ok(vec!(relaxed))
+                c.remove("$clusterTime");
+                Ok(vec!(c))
+            }
+            Err(e) => {
+                log::error!("Got error {}", e);
+                return Err(e)?;
+            }
+        }
     }
 
     pub async fn find(
@@ -30,6 +96,11 @@ impl DB {
         collection: &str,
         payload: Find,
     ) -> Result<Vec<Document>> {
+
+        if payload.explain.is_some() {
+            return self.find_explain(database, collection, payload).await
+        }
+
         // Log which collection this is going into
         log::debug!("Searching {}.{}", database, collection);
 

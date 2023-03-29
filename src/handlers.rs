@@ -30,6 +30,7 @@ pub struct Find {
     pub sort: Option<Document>,
     pub limit: Option<i64>,
     pub skip: Option<u64>,
+    pub explain: Option<String>
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
