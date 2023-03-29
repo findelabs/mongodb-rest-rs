@@ -1,102 +1,106 @@
+use axum::{
+    extract::Extension,
+    middleware,
+    routing::{get, post},
+    Router,
+};
 use chrono::Local;
-use clap::{crate_version, App, Arg};
+use clap::Parser;
 use env_logger::{Builder, Target};
 use log::LevelFilter;
-use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Request, Server};
+use std::future::ready;
 use std::io::Write;
-
-use db::DB;
-use error::MyError;
+use std::net::SocketAddr;
+use tower_http::trace::TraceLayer;
 
 mod db;
 mod error;
-mod server;
+mod handlers;
+mod metrics;
+mod state;
 
-type Result<T> = std::result::Result<T, MyError>;
+use crate::metrics::{setup_metrics_recorder, track_metrics};
+use handlers::{
+    coll_count, coll_index_stats, coll_indexes, databases, db_colls, echo, handler_404, health,
+    help, root, rs_log, rs_operations, rs_stats, rs_status, rs_top,
+};
+use state::State;
+
+#[derive(Parser, Debug, Clone)]
+#[command(author, version, about, long_about = None)]
+pub struct Args {
+    /// Port to listen on
+    #[arg(short, long, default_value_t = 8080, env = "API_PORT")]
+    port: u16,
+
+    /// Default connection uri
+    #[arg(short, long, env = "MONGODB_URI")]
+    uri: String,
+
+    /// Should connection be readonly?
+    #[arg(short, long, env = "MONGODB_READONLY")]
+    readonly: bool,
+}
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    let opts = App::new("json-bucket")
-        .version(crate_version!())
-        .author("Daniel F. <dan@findelabs.com>")
-        .about("Main findereport site generator")
-        .arg(
-            Arg::with_name("uri")
-                .short("u")
-                .long("uri")
-                .required(true)
-                .value_name("URI")
-                .env("MONGODB_URI")
-                .help("MongoDB URI")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("port")
-                .short("p")
-                .long("port")
-                .help("Set port to listen on")
-                .required(false)
-                .env("LISTEN_PORT")
-                .default_value("8080")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("readonly")
-                .short("r")
-                .long("readonly")
-                .help("Only access database read-only")
-                .required(false)
-        )
-        .get_matches();
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let args = Args::parse();
 
     // Initialize log Builder
     Builder::new()
         .format(|buf, record| {
             writeln!(
                 buf,
-                "{{\"date\": \"{}\", \"level\": \"{}\", \"message\": \"{}\"}}",
+                "{{\"date\": \"{}\", \"level\": \"{}\", \"log\": {}}}",
                 Local::now().format("%Y-%m-%dT%H:%M:%S:%f"),
                 record.level(),
                 record.args()
             )
         })
         .target(Target::Stdout)
-        .filter_level(LevelFilter::Error)
+        .filter_level(LevelFilter::Info)
         .parse_default_env()
         .init();
 
-    // Read in config file
-    let url = &opts.value_of("uri").unwrap();
-    let port: u16 = opts.value_of("port").unwrap().parse().unwrap_or_else(|_| {
-        eprintln!("specified port isn't in a valid range, setting to 8080");
-        8080
-    });
+    // Create state for axum
+    let state = State::new(args.clone()).await?;
 
-    let db = DB::init(&url).await?;
-    let addr = ([0, 0, 0, 0], port).into();
-    let service = make_service_fn(move |_| {
-        let opts = opts.clone();
-        let db = db.clone();
-        async move {
-            Ok::<_, hyper::Error>(service_fn(move |req: Request<Body>| {
-                server::main_handler(opts.clone(), req, db.clone())
-            }))
-        }
-    });
+    // Create prometheus handle
+    let recorder_handle = setup_metrics_recorder();
 
-    let server = Server::bind(&addr).serve(service);
+    let base = Router::new()
+        .route("/_cat/rs/status", get(rs_status))
+        .route("/_cat/rs/log", get(rs_log))
+        .route("/_cat/rs/stats", get(rs_stats))
+        .route("/_cat/rs/operations", get(rs_operations))
+        .route("/_cat/rs/top", get(rs_top))
+        .route("/_cat/dbs", get(databases))
+        .route("/:db/_collections", get(db_colls))
+        .route("/:db/:coll/_count", get(coll_count))
+        .route("/:db/:coll/_indexes", get(coll_indexes))
+        .route("/:db/:coll/_index_stats", get(coll_index_stats))
+        .route("/", get(root));
 
-    println!(
-        "Starting json-bucket:{} on http://{}",
-        crate_version!(),
-        addr
-    );
+    // These should NOT be authenticated
+    let standard = Router::new()
+        .route("/health", get(health))
+        .route("/echo", post(echo))
+        .route("/help", get(help))
+        .route("/metrics", get(move || ready(recorder_handle.render())));
 
-    server.await?;
-    //    if let Err(e) = server.await {
-    //        eprintln!("server error: {}", e);
-    //    }
+    let app = Router::new()
+        .merge(base)
+        .merge(standard)
+        .layer(TraceLayer::new_for_http())
+        .route_layer(middleware::from_fn(track_metrics))
+        .fallback(handler_404)
+        .layer(Extension(state));
+
+    let addr = SocketAddr::from(([0, 0, 0, 0], args.port as u16));
+    log::info!("Listening on {}", addr);
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
+        .await?;
 
     Ok(())
 }

@@ -1,20 +1,15 @@
-//use chrono::prelude::*;
-use mongodb::bson::{doc, document::Document};
-//use mongodb::{options::ClientOptions, options::FindOptions, Client, Collection};
-use crate::error::MyError;
-use mongodb::{options::ClientOptions, options::ListDatabasesOptions, Client};
-//use serde::{Deserialize, Serialize};
-use futures::StreamExt;
-//use clap::ArgMatches;
-//use std::collections::HashMap;
+use crate::error::Error as RestError;
 use bson::Bson;
+use futures::StreamExt;
+use mongodb::bson::{doc, document::Document};
+use mongodb::{options::ClientOptions, options::ListDatabasesOptions, Client};
 
 #[derive(Clone, Debug)]
 pub struct DB {
-    pub client: Client
+    pub client: Client,
 }
 
-type Result<T> = std::result::Result<T, MyError>;
+type Result<T> = std::result::Result<T, RestError>;
 
 impl DB {
     pub async fn init(url: &str) -> Result<Self> {
@@ -22,12 +17,20 @@ impl DB {
         client_options.app_name = Some("json-bucket".to_string());
 
         Ok(Self {
-            client: Client::with_options(client_options)?
+            client: Client::with_options(client_options)?,
         })
     }
 
-    pub async fn aggregate(&self, database: &str, collection: &str, pipeline: Vec<Document>) -> Result<Vec<Document>> {
-        let collection = self.client.database(&database).collection(collection);
+    pub async fn aggregate(
+        &self,
+        database: &str,
+        collection: &str,
+        pipeline: Vec<Document>,
+    ) -> Result<Vec<Document>> {
+        let collection = self
+            .client
+            .database(&database)
+            .collection::<Document>(collection);
         let mut cursor = collection.aggregate(pipeline, None).await?;
 
         let mut result: Vec<Document> = Vec::new();
@@ -45,7 +48,6 @@ impl DB {
     }
 
     pub async fn collections(&self, database: &str) -> Result<Vec<String>> {
-        // Log that we are trying to list collections
         log::debug!("Getting collections in {}", database);
 
         match self
@@ -58,34 +60,32 @@ impl DB {
                 log::debug!("Success listing collections in {}", database);
                 Ok(collections)
             }
-            Err(e) => {
-                log::error!("Got error {}", e);
-                Err(MyError::MongodbError)
-            }
+            Err(e) => return Err(e)?,
         }
     }
 
-    pub async fn count(&self, database: &str, collection: &str) -> Result<Document> {
-        // Log that we are trying to list collections
+    pub async fn coll_count(&self, database: &str, collection: &str) -> Result<Document> {
         log::debug!("Getting document count in {}", database);
 
-        let collection = self.client.database(&database).collection(collection);
+        let collection = self
+            .client
+            .database(&database)
+            .collection::<Document>(collection);
 
         match collection.estimated_document_count(None).await {
             Ok(count) => {
                 log::debug!("Successfully counted docs in {}", database);
-                let result = doc! {"docs" : count};
+                let result = doc! {"docs" : count.to_string()};
                 Ok(result)
             }
             Err(e) => {
                 log::error!("Got error {}", e);
-                Err(MyError::MongodbError)
+                return Err(e)?;
             }
         }
     }
 
-    pub async fn get_indexes(&self, database: &str, collection: &str) -> Result<Document> {
-        // Log that we are trying to list collections
+    pub async fn coll_indexes(&self, database: &str, collection: &str) -> Result<Document> {
         log::debug!("Getting indexes in {}", database);
 
         let db = self.client.database(&database);
@@ -94,18 +94,20 @@ impl DB {
         match db.run_command(command, None).await {
             Ok(indexes) => {
                 log::debug!("Successfully got indexes in {}.{}", database, collection);
-                let results = indexes.get_document("cursor").expect("Successfully got indexes, but failed to extract cursor").clone();
+                let results = indexes
+                    .get_document("cursor")
+                    .expect("Successfully got indexes, but failed to extract cursor")
+                    .clone();
                 Ok(results)
             }
             Err(e) => {
                 log::error!("Got error {}", e);
-                Err(MyError::MongodbError)
+                return Err(e)?;
             }
         }
     }
 
     pub async fn rs_status(&self) -> Result<Document> {
-        // Log that we are trying to list collections
         log::debug!("Getting replSetGetStatus");
 
         let database = self.client.database("admin");
@@ -118,13 +120,12 @@ impl DB {
             }
             Err(e) => {
                 log::error!("Got error {}", e);
-                Err(MyError::MongodbError)
+                return Err(e)?;
             }
         }
     }
 
-    pub async fn get_log(&self) -> Result<Vec<Bson>> {
-        // Log that we are trying to list collections
+    pub async fn rs_log(&self) -> Result<Vec<Bson>> {
         log::debug!("Getting getLog");
 
         let database = self.client.database("admin");
@@ -132,19 +133,18 @@ impl DB {
 
         match database.run_command(command, None).await {
             Ok(output) => {
-                let results = output.get_array("log").expect("Failed to get log field").clone();
+                let results = output.get_array("log")?.to_vec();
                 log::debug!("Successfully got getLog");
                 Ok(results)
             }
             Err(e) => {
                 log::error!("Got error {}", e);
-                Err(MyError::MongodbError)
+                return Err(e)?;
             }
         }
     }
 
-    pub async fn server_status(&self) -> Result<Document> {
-        // Log that we are trying to list collections
+    pub async fn rs_stats(&self) -> Result<Document> {
         log::debug!("Getting serverStatus");
 
         let database = self.client.database("admin");
@@ -157,12 +157,12 @@ impl DB {
             }
             Err(e) => {
                 log::error!("Got error {}", e);
-                Err(MyError::MongodbError)
+                return Err(e)?;
             }
         }
     }
 
-    pub async fn inprog(&self) -> Result<Vec<Bson>> {
+    pub async fn rs_operations(&self) -> Result<Vec<Bson>> {
         log::debug!("Getting inprog");
 
         let database = self.client.database("admin");
@@ -171,17 +171,20 @@ impl DB {
         match database.run_command(command, None).await {
             Ok(output) => {
                 log::debug!("Successfully got inprog");
-                let results = output.get_array("inprog").expect("Failed to get log field").clone();
+                let results = output
+                    .get_array("inprog")
+                    .expect("Failed to get log field")
+                    .clone();
                 Ok(results)
             }
             Err(e) => {
                 log::error!("Got error {}", e);
-                Err(MyError::MongodbError)
+                return Err(e)?;
             }
         }
     }
 
-    pub async fn top(&self) -> Result<Document> {
+    pub async fn rs_top(&self) -> Result<Document> {
         log::debug!("Getting top");
 
         let database = self.client.database("admin");
@@ -190,17 +193,24 @@ impl DB {
         match database.run_command(command, None).await {
             Ok(output) => {
                 log::debug!("Successfully got top");
-                let results = output.get_document("totals").expect("Failed to get log field").clone();
+                let results = output
+                    .get_document("totals")
+                    .expect("Failed to get log field")
+                    .clone();
                 Ok(results)
             }
             Err(e) => {
                 log::error!("Got error {}", e);
-                Err(MyError::MongodbError)
+                return Err(e)?;
             }
         }
     }
 
-    pub async fn index_stats(&self, database: &str, collection: &str) -> Result<Vec<Document>> {
+    pub async fn coll_index_stats(
+        &self,
+        database: &str,
+        collection: &str,
+    ) -> Result<Vec<Document>> {
         log::debug!("Getting index stats");
 
         let mut commands = Vec::new();
@@ -214,14 +224,16 @@ impl DB {
             }
             Err(e) => {
                 log::error!("Got error {}", e);
-                Err(MyError::MongodbError)
+                return Err(e)?;
             }
         }
     }
 
     pub async fn databases(&self) -> Result<Vec<String>> {
         log::debug!("Getting databases");
-        let options = ListDatabasesOptions::builder().authorized_databases(Some(false)).build();
+        let options = ListDatabasesOptions::builder()
+            .authorized_databases(Some(false))
+            .build();
 
         match self.client.list_database_names(None, options).await {
             Ok(output) => {
@@ -230,7 +242,7 @@ impl DB {
             }
             Err(e) => {
                 log::error!("Got error {}", e);
-                Err(MyError::MongodbError)
+                return Err(e)?;
             }
         }
     }

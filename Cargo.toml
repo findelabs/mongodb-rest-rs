@@ -1,29 +1,37 @@
 [package]
-name = "json-bucket"
-version = "0.1.12"
+name = "mongodb-rest"
+version = "0.2.0"
 authors = ["Verticaleap"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-hyper = "0.13"
-tokio = { version = "0.2", features = ["full"] }
-futures-util = "0.3"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version="0.3", features = ["env-filter"] }
+axum = "0.6"
+serde = { version = "1.0", features = ["derive"]}
 serde_json = "1.0"
-hyper-tls = "0.4"
-serde = { version = "1.0", features = ["derive"] }
-#clap = "3.0.0-beta.1"
-clap = "2"
-env_logger = "0.8"
+serde_yaml = "0.8"
+clap = { version = "4", features = ["cargo", "env", "derive"] }
+env_logger = "0.10"
 log = "0.4"
 chrono = { version = "0.4", features = ["serde"] }
-serde_yaml = "0.8"
-url = "2.0"
-http = "0.2"
+hyper-tls = "0.5"
+hyper = "0.14"
+tower-http = { version = "0.1", features = ["trace", "auth"] }
+tower = { version = "0.4", features = ["filter"] }
+reqwest = { version = "0.11", features = ["json"] }
+native-tls = "0.2"
+base64 = "0.13"
+url = { version = "2", features = ["serde"] }
+metrics = "0.18"
+metrics-exporter-prometheus = "0.9"
+axum-extra = "0.1"
+metrics-util = "0.12"
 bytes = "0.5"
-mongodb = "1.1.0"
+mongodb = "2"
 futures = { version = "0.3.4", default-features = false, features = ["async-await"] }
-bson = "1.1"
-json = "0.12"
+bson = "2"
 rust_tools = { git = "https://github.com/findelabs/rust-tools.git", branch = "master" }
