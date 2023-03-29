@@ -24,16 +24,17 @@ Options:
 # FindOne
 {
   "filter": {},
-  "projection": {}
+  "projection": Option<{}>,
+  "explain": Option<"queryPlanner | executionStats | allPlansExecution">
 }
 
 # Find
 {
   "filter": {},
-  "projection": {},
-  "sort": {},
-  "limit": u64,
-  "skip": u64
+  "projection": Option<{}>,
+  "sort": Option<{}>,
+  "limit": Option<u64>,
+  "skip": Option<u64>
 }
 
 # Update/UpdateOne
