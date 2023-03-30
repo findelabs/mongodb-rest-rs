@@ -21,8 +21,9 @@ mod state;
 
 use crate::metrics::{setup_metrics_recorder, track_metrics};
 use handlers::{
-    aggregate, coll_count, coll_index_stats, coll_indexes, databases, db_colls, echo, find,
-    find_one, handler_404, health, help, root, rs_log, rs_operations, rs_stats, rs_status, rs_top,
+    aggregate, coll_count, coll_index_stats, coll_indexes, coll_stats, databases, db_colls,
+    db_stats, echo, find, find_one, handler_404, health, help, root, rs_conn, rs_log,
+    rs_operations, rs_pool, rs_stats, rs_status, rs_top,
 };
 use state::State;
 
@@ -69,18 +70,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let recorder_handle = setup_metrics_recorder();
 
     let base = Router::new()
-        .route("/_cat/rs/status", get(rs_status))
-        .route("/_cat/rs/log", get(rs_log))
-        .route("/_cat/rs/stats", get(rs_stats))
-        .route("/_cat/rs/operations", get(rs_operations))
-        .route("/_cat/rs/top", get(rs_top))
+        .route("/_cat/status", get(rs_status))
+        .route("/_cat/log", get(rs_log))
+        .route("/_cat/ops", get(rs_operations))
+        .route("/_cat/stats", get(rs_stats))
         .route("/_cat/dbs", get(databases))
+        .route("/_cat/top", get(rs_top))
+        .route("/_cat/conn", get(rs_conn))
+        .route("/_cat/pool", get(rs_pool))
+        .route("/:db/_stats", get(db_stats))
         .route("/:db/_collections", get(db_colls))
         .route("/:db/:coll/_count", get(coll_count))
         .route("/:db/:coll/_indexes", get(coll_indexes))
         .route("/:db/:coll/_index_stats", get(coll_index_stats))
         .route("/:db/:coll/_find_one", post(find_one))
         .route("/:db/:coll/_find", post(find))
+        .route("/:db/:coll/_stats", get(coll_stats))
         .route("/:db/:coll/_aggregate", post(aggregate))
         .route("/", get(root));
 

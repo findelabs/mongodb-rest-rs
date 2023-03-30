@@ -30,12 +30,13 @@ pub struct Find {
     pub sort: Option<Document>,
     pub limit: Option<i64>,
     pub skip: Option<u64>,
-    pub explain: Option<String>
+    pub explain: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Aggregate {
     pub pipeline: Vec<Document>,
+    pub explain: Option<String>,
 }
 
 pub async fn aggregate(
@@ -44,9 +45,7 @@ pub async fn aggregate(
     Json(payload): Json<Aggregate>,
 ) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"find_one\", \"method\":\"post\"}}");
-    Ok(Json(json!(
-        state.db.aggregate(&db, &coll, payload.pipeline).await?
-    )))
+    Ok(Json(json!(state.db.aggregate(&db, &coll, payload).await?)))
 }
 
 pub async fn find(
@@ -69,7 +68,7 @@ pub async fn find_one(
 
 pub async fn rs_status(Extension(state): Extension<State>) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"rs_status\", \"method\":\"get\"}}");
-    Ok(Json(json!(state.db.rs_status().await?)))
+    Ok(Json(state.db.rs_status().await?))
 }
 
 pub async fn rs_log(Extension(state): Extension<State>) -> Result<Json<Value>, RestError> {
@@ -77,19 +76,45 @@ pub async fn rs_log(Extension(state): Extension<State>) -> Result<Json<Value>, R
     Ok(Json(json!(state.db.rs_log().await?)))
 }
 
-pub async fn rs_stats(Extension(state): Extension<State>) -> Result<Json<Value>, RestError> {
-    log::info!("{{\"fn\": \"rs_stats\", \"method\":\"get\"}}");
-    Ok(Json(json!(state.db.rs_stats().await?)))
-}
-
 pub async fn rs_operations(Extension(state): Extension<State>) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"rs_operations\", \"method\":\"get\"}}");
     Ok(Json(json!(state.db.rs_operations().await?)))
 }
 
+pub async fn rs_stats(Extension(state): Extension<State>) -> Result<Json<Value>, RestError> {
+    log::info!("{{\"fn\": \"rs_stats\", \"method\":\"get\"}}");
+    Ok(Json(json!(state.db.rs_stats().await?)))
+}
+
 pub async fn rs_top(Extension(state): Extension<State>) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"rs_top\", \"method\":\"get\"}}");
     Ok(Json(json!(state.db.rs_top().await?)))
+}
+
+pub async fn rs_conn(Extension(state): Extension<State>) -> Result<Json<Value>, RestError> {
+    log::info!("{{\"fn\": \"rs_conn\", \"method\":\"get\"}}");
+    Ok(Json(json!(state.db.rs_conn().await?)))
+}
+
+pub async fn rs_pool(Extension(state): Extension<State>) -> Result<Json<Value>, RestError> {
+    log::info!("{{\"fn\": \"rs_pool\", \"method\":\"get\"}}");
+    Ok(Json(json!(state.db.rs_pool().await?)))
+}
+
+pub async fn db_stats(
+    Extension(state): Extension<State>,
+    Path(db): Path<String>,
+) -> Result<Json<Value>, RestError> {
+    log::info!("{{\"fn\": \"db_stats\", \"method\":\"get\"}}");
+    Ok(Json(json!(state.db.db_stats(&db).await?)))
+}
+
+pub async fn coll_stats(
+    Extension(state): Extension<State>,
+    Path((db, coll)): Path<(String, String)>,
+) -> Result<Json<Value>, RestError> {
+    log::info!("{{\"fn\": \"coll_stats\", \"method\":\"get\"}}");
+    Ok(Json(json!(state.db.coll_stats(&db, &coll).await?)))
 }
 
 pub async fn databases(Extension(state): Extension<State>) -> Result<Json<Value>, RestError> {

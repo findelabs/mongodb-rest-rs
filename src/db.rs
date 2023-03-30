@@ -1,18 +1,26 @@
 use crate::error::Error as RestError;
 use bson::Bson;
 use futures::StreamExt;
-use mongodb::bson::{to_bson, doc, document::Document, to_document};
+use mongodb::bson::{doc, document::Document, to_bson, to_document};
 use mongodb::options::{FindOneOptions, FindOptions};
 use mongodb::{options::ClientOptions, options::ListDatabasesOptions, Client};
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 
-use crate::handlers::{Find, FindOne};
+use crate::handlers::{Aggregate, Find, FindOne};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Explain {
     pub explain: Document,
     pub verbosity: String,
-    pub comment: String
+    pub comment: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AggregateRaw {
+    pub aggregate: String,
+    pub pipeline: Vec<Document>,
+    pub cursor: Document,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -46,12 +54,50 @@ impl DB {
         })
     }
 
+    pub async fn aggregate_explain(
+        &self,
+        database: &str,
+        collection: &str,
+        payload: Aggregate,
+    ) -> Result<Vec<Value>> {
+        // Log which collection this is going into
+        log::debug!("Explaining aggregate in {}.{}", database, collection);
+
+        let aggregate_raw = AggregateRaw {
+            aggregate: collection.to_string(),
+            pipeline: payload.pipeline,
+            cursor: doc! {},
+        };
+
+        let command = Explain {
+            explain: to_document(&aggregate_raw)?,
+            verbosity: payload.explain.unwrap(),
+            comment: "mongodb-rest-rs explain".to_string(),
+        };
+
+        let db = self.client.database(database);
+
+        match db.run_command(to_document(&command)?, None).await {
+            Ok(mut c) => {
+                log::debug!("Successfully ran explain in {}.{}", database, collection);
+                c.remove("$clusterTime");
+                c.remove("operationTime");
+                let bson = to_bson(&c)?.into_relaxed_extjson();
+                Ok(vec![bson])
+            }
+            Err(e) => {
+                log::error!("Got error {}", e);
+                return Err(e)?;
+            }
+        }
+    }
+
     pub async fn find_explain(
         &self,
         database: &str,
         collection: &str,
         payload: Find,
-    ) -> Result<Vec<Document>> {
+    ) -> Result<Vec<Value>> {
         // Log which collection this is going into
         log::debug!("Explaining search in {}.{}", database, collection);
 
@@ -61,27 +107,24 @@ impl DB {
             sort: payload.sort.clone(),
             projection: payload.projection.clone(),
             limit: payload.limit.clone(),
-            skip: payload.skip.clone()
+            skip: payload.skip.clone(),
         };
 
         let command = Explain {
             explain: to_document(&find_raw)?,
             verbosity: payload.explain.unwrap(),
-            comment: "mongodb-rest-rs explain".to_string()
+            comment: "mongodb-rest-rs explain".to_string(),
         };
 
-        let db = self
-            .client
-            .database(database);
+        let db = self.client.database(database);
 
         match db.run_command(to_document(&command)?, None).await {
             Ok(mut c) => {
                 log::debug!("Successfully ran explain in {}.{}", database, collection);
-//                let bson = to_bson(&c)?;
-//                let relaxed = to_document(&bson.into_relaxed_extjson())?;
-//                Ok(vec!(relaxed))
                 c.remove("$clusterTime");
-                Ok(vec!(c))
+                c.remove("operationTime");
+                let bson = to_bson(&c)?.into_relaxed_extjson();
+                Ok(vec![bson])
             }
             Err(e) => {
                 log::error!("Got error {}", e);
@@ -90,15 +133,48 @@ impl DB {
         }
     }
 
+    pub async fn aggregate(
+        &self,
+        database: &str,
+        collection: &str,
+        payload: Aggregate,
+    ) -> Result<Vec<Value>> {
+        if payload.explain.is_some() {
+            return self.aggregate_explain(database, collection, payload).await;
+        }
+
+        let collection = self
+            .client
+            .database(&database)
+            .collection::<Document>(collection);
+
+        let mut cursor = collection.aggregate(payload.pipeline, None).await?;
+
+        let mut result: Vec<Value> = Vec::new();
+        while let Some(doc) = cursor.next().await {
+            match doc {
+                Ok(conv) => {
+                    let bson = to_bson(&conv)?.into_relaxed_extjson();
+                    result.push(bson);
+                }
+                Err(e) => {
+                    log::error!("Caught error, skipping: {}", e);
+                    continue;
+                }
+            }
+        }
+        let result = result.into_iter().rev().collect();
+        Ok(result)
+    }
+
     pub async fn find(
         &self,
         database: &str,
         collection: &str,
         payload: Find,
-    ) -> Result<Vec<Document>> {
-
+    ) -> Result<Vec<Value>> {
         if payload.explain.is_some() {
-            return self.find_explain(database, collection, payload).await
+            return self.find_explain(database, collection, payload).await;
         }
 
         // Log which collection this is going into
@@ -115,12 +191,16 @@ impl DB {
             .client
             .database(database)
             .collection::<Document>(collection);
+
         let mut cursor = collection.find(payload.filter, find_options).await?;
 
-        let mut result: Vec<Document> = Vec::new();
+        let mut result: Vec<Value> = Vec::new();
         while let Some(doc) = cursor.next().await {
             match doc {
-                Ok(converted) => result.push(converted),
+                Ok(conv) => {
+                    let bson = to_bson(&conv)?.into_relaxed_extjson();
+                    result.push(bson);
+                }
                 Err(e) => {
                     log::error!("Caught error, skipping: {}", e);
                     continue;
@@ -136,7 +216,7 @@ impl DB {
         database: &str,
         collection: &str,
         payload: FindOne,
-    ) -> Result<Document> {
+    ) -> Result<Value> {
         log::debug!("Searching {}.{}", database, collection);
 
         let find_one_options = match payload.projection {
@@ -153,11 +233,12 @@ impl DB {
             Ok(result) => match result {
                 Some(doc) => {
                     log::debug!("Found a result");
-                    Ok(doc)
+                    let bson = to_bson(&doc)?.into_relaxed_extjson();
+                    Ok(bson)
                 }
                 None => {
                     log::debug!("No results found");
-                    Ok(doc! { "msg": "no results found" })
+                    Ok(json!({ "msg": "no results found" }))
                 }
             },
             Err(e) => {
@@ -165,32 +246,6 @@ impl DB {
                 return Err(e)?;
             }
         }
-    }
-
-    pub async fn aggregate(
-        &self,
-        database: &str,
-        collection: &str,
-        pipeline: Vec<Document>,
-    ) -> Result<Vec<Document>> {
-        let collection = self
-            .client
-            .database(&database)
-            .collection::<Document>(collection);
-        let mut cursor = collection.aggregate(pipeline, None).await?;
-
-        let mut result: Vec<Document> = Vec::new();
-        while let Some(doc) = cursor.next().await {
-            match doc {
-                Ok(converted) => result.push(converted),
-                Err(e) => {
-                    log::error!("Caught error, skipping: {}", e);
-                    continue;
-                }
-            }
-        }
-        let result = result.into_iter().rev().collect();
-        Ok(result)
     }
 
     pub async fn collections(&self, database: &str) -> Result<Vec<String>> {
@@ -210,7 +265,7 @@ impl DB {
         }
     }
 
-    pub async fn coll_count(&self, database: &str, collection: &str) -> Result<Document> {
+    pub async fn coll_count(&self, database: &str, collection: &str) -> Result<Value> {
         log::debug!("Getting document count in {}", database);
 
         let collection = self
@@ -221,7 +276,7 @@ impl DB {
         match collection.estimated_document_count(None).await {
             Ok(count) => {
                 log::debug!("Successfully counted docs in {}", database);
-                let result = doc! {"docs" : count.to_string()};
+                let result = json!({ "docs": count });
                 Ok(result)
             }
             Err(e) => {
@@ -231,7 +286,7 @@ impl DB {
         }
     }
 
-    pub async fn coll_indexes(&self, database: &str, collection: &str) -> Result<Document> {
+    pub async fn coll_indexes(&self, database: &str, collection: &str) -> Result<Value> {
         log::debug!("Getting indexes in {}", database);
 
         let db = self.client.database(&database);
@@ -244,7 +299,8 @@ impl DB {
                     .get_document("cursor")
                     .expect("Successfully got indexes, but failed to extract cursor")
                     .clone();
-                Ok(results)
+                let bson = to_bson(&results)?.into_relaxed_extjson();
+                Ok(bson)
             }
             Err(e) => {
                 log::error!("Got error {}", e);
@@ -253,16 +309,19 @@ impl DB {
         }
     }
 
-    pub async fn rs_status(&self) -> Result<Document> {
+    pub async fn rs_status(&self) -> Result<Value> {
         log::debug!("Getting replSetGetStatus");
 
         let database = self.client.database("admin");
         let command = doc! { "replSetGetStatus": 1};
 
         match database.run_command(command, None).await {
-            Ok(output) => {
+            Ok(mut output) => {
                 log::debug!("Successfully got replSetGetStatus");
-                Ok(output)
+                output.remove("$clusterTime");
+                output.remove("operationTime");
+                let bson = to_bson(&output)?.into_relaxed_extjson();
+                Ok(bson)
             }
             Err(e) => {
                 log::error!("Got error {}", e);
@@ -290,16 +349,19 @@ impl DB {
         }
     }
 
-    pub async fn rs_stats(&self) -> Result<Document> {
+    pub async fn rs_stats(&self) -> Result<Value> {
         log::debug!("Getting serverStatus");
 
         let database = self.client.database("admin");
         let command = doc! { "serverStatus": 1};
 
         match database.run_command(command, None).await {
-            Ok(output) => {
+            Ok(mut output) => {
                 log::debug!("Successfully got serverStatus");
-                Ok(output)
+                output.remove("$clusterTime");
+                output.remove("operationTime");
+                let bson = to_bson(&output)?.into_relaxed_extjson();
+                Ok(bson)
             }
             Err(e) => {
                 log::error!("Got error {}", e);
@@ -308,7 +370,91 @@ impl DB {
         }
     }
 
-    pub async fn rs_operations(&self) -> Result<Vec<Bson>> {
+    pub async fn rs_pool(&self) -> Result<Value> {
+        log::debug!("Getting connPoolStats");
+
+        let database = self.client.database("admin");
+        let command = doc! { "connPoolStats": 1};
+
+        match database.run_command(command, None).await {
+            Ok(mut output) => {
+                log::debug!("Successfully got connPoolStats");
+                output.remove("$clusterTime");
+                output.remove("operationTime");
+                let bson = to_bson(&output)?.into_relaxed_extjson();
+                Ok(bson)
+            }
+            Err(e) => {
+                log::error!("Got error {}", e);
+                return Err(e)?;
+            }
+        }
+    }
+
+    pub async fn rs_conn(&self) -> Result<Value> {
+        log::debug!("Getting connectionStatus");
+
+        let database = self.client.database("admin");
+        let command = doc! { "connectionStatus": 1};
+
+        match database.run_command(command, None).await {
+            Ok(mut output) => {
+                log::debug!("Successfully got connectionStatus");
+                output.remove("$clusterTime");
+                output.remove("operationTime");
+                let bson = to_bson(&output)?.into_relaxed_extjson();
+                Ok(bson)
+            }
+            Err(e) => {
+                log::error!("Got error {}", e);
+                return Err(e)?;
+            }
+        }
+    }
+
+    pub async fn coll_stats(&self, database: &str, collection: &str) -> Result<Value> {
+        log::debug!("Getting collStats");
+
+        let database = self.client.database(database);
+        let command = doc! { "collStats": collection};
+
+        match database.run_command(command, None).await {
+            Ok(mut output) => {
+                log::debug!("Successfully got collStats");
+                output.remove("$clusterTime");
+                output.remove("operationTime");
+                let bson = to_bson(&output)?.into_relaxed_extjson();
+                Ok(bson)
+            }
+            Err(e) => {
+                log::error!("Got error {}", e);
+                return Err(e)?;
+            }
+        }
+    }
+
+    pub async fn db_stats(&self, database: &str) -> Result<Value> {
+        log::debug!("Getting dbStats");
+
+        let database = self.client.database(database);
+        let command = doc! { "dbStats": 1};
+
+        match database.run_command(command, None).await {
+            Ok(mut output) => {
+                log::debug!("Successfully got dbStats");
+                output.remove("$clusterTime");
+                output.remove("operationTime");
+                let bson = to_bson(&output)?.into_relaxed_extjson();
+                Ok(bson)
+            }
+            Err(e) => {
+                log::error!("Got error {}", e);
+                return Err(e)?;
+            }
+        }
+    }
+
+    pub async fn rs_operations(&self) -> Result<Vec<Value>> {
         log::debug!("Getting inprog");
 
         let database = self.client.database("admin");
@@ -321,7 +467,19 @@ impl DB {
                     .get_array("inprog")
                     .expect("Failed to get log field")
                     .clone();
-                Ok(results)
+                let output = results
+                    .iter()
+                    .map(|x| {
+                        let mut doc = to_document(x).expect("Malformed operation doc");
+                        doc.remove("$clusterTime");
+                        doc.remove("operationTime");
+                        let bson = to_bson(&x)
+                            .expect("Malformed bson operation doc")
+                            .into_relaxed_extjson();
+                        bson
+                    })
+                    .collect();
+                Ok(output)
             }
             Err(e) => {
                 log::error!("Got error {}", e);
@@ -330,7 +488,7 @@ impl DB {
         }
     }
 
-    pub async fn rs_top(&self) -> Result<Document> {
+    pub async fn rs_top(&self) -> Result<Value> {
         log::debug!("Getting top");
 
         let database = self.client.database("admin");
@@ -343,7 +501,8 @@ impl DB {
                     .get_document("totals")
                     .expect("Failed to get log field")
                     .clone();
-                Ok(results)
+                let bson = to_bson(&results)?.into_relaxed_extjson();
+                Ok(bson)
             }
             Err(e) => {
                 log::error!("Got error {}", e);
@@ -352,18 +511,19 @@ impl DB {
         }
     }
 
-    pub async fn coll_index_stats(
-        &self,
-        database: &str,
-        collection: &str,
-    ) -> Result<Vec<Document>> {
+    pub async fn coll_index_stats(&self, database: &str, collection: &str) -> Result<Vec<Value>> {
         log::debug!("Getting index stats");
 
         let mut commands = Vec::new();
         let command = doc! { "$indexStats": {}};
         commands.push(command);
 
-        match self.aggregate(database, collection, commands).await {
+        let payload = Aggregate {
+            pipeline: commands,
+            explain: None,
+        };
+
+        match self.aggregate(database, collection, payload).await {
             Ok(output) => {
                 log::debug!("Successfully got IndexStats");
                 Ok(output)
