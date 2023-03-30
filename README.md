@@ -108,6 +108,9 @@ POST /:db/:coll/_index
 
 ### Future
 ``` 
+# Delete index
+DELETE /:db/:coll/_index?name=<index name>
+
 # Insert
 POST /:db/:coll/_insert
 {}
