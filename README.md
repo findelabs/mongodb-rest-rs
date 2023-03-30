@@ -85,6 +85,25 @@ POST /:db/:coll/_aggregate
   "pipeline": [{}]
   "explain": Option<"queryPlanner | executionStats | allPlansExecution">
 }
+
+# Create index
+POST /:db/:coll/_index 
+{
+  "keys": {}
+  "options": {
+    unique: Option<bool>,
+    name: Option<String>,
+    partial_filter_expression: Option<Document>,
+    sparse: Option<bool>,
+    expire_after: Option<Duration>,
+    hidden: Option<bool>,
+    collation: Option<Collation>,
+    weights: Option<Document>,
+    default_language: Option<String>,
+    language_override: Option<String>,
+    text_index_version: Option<TextIndexVersion>
+  }
+}
 ```
 
 ### Future
