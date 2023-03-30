@@ -4,6 +4,8 @@ use axum::{
     response::IntoResponse,
     Extension, Json,
 };
+use core::time::Duration;
+use mongodb::options::{CollationCaseFirst, CollationStrength, CollationAlternate, CollationMaxVariable, Collation, TextIndexVersion};
 use bson::Document;
 use clap::{crate_description, crate_name, crate_version};
 use serde::{Deserialize, Serialize};
@@ -39,6 +41,39 @@ pub struct Aggregate {
     pub explain: Option<String>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Index {
+    pub keys: Document,
+    pub options: Option<IndexCreateOptions>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct IndexCreateOptions {
+    pub unique: Option<bool>,
+    pub name: Option<String>,
+    pub partial_filter_expression: Option<Document>,
+    pub sparse: Option<bool>,
+    pub expire_after: Option<Duration>,
+    pub hidden: Option<bool>,
+    pub collation: Option<Collation>,
+    pub weights: Option<Document>,
+    pub default_language: Option<String>,
+    pub language_override: Option<String>,
+    pub text_index_version: Option<TextIndexVersion>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct IndexCollation{
+    pub locale: Option<String>,
+    pub case_level: Option<bool>,
+    pub case_first: Option<CollationCaseFirst>,
+    pub strength: Option<CollationStrength>,
+    pub numeric_ordering: Option<bool>,
+    pub alternate: Option<CollationAlternate>,
+    pub max_variable: Option<CollationMaxVariable>,
+    pub backwards: Option<bool>
+}
+
 pub async fn aggregate(
     Extension(state): Extension<State>,
     Path((db, coll)): Path<(String, String)>,
@@ -46,6 +81,15 @@ pub async fn aggregate(
 ) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"find_one\", \"method\":\"post\"}}");
     Ok(Json(json!(state.db.aggregate(&db, &coll, payload).await?)))
+}
+
+pub async fn index_create(
+    Extension(state): Extension<State>,
+    Path((db, coll)): Path<(String, String)>,
+    Json(payload): Json<Index>,
+) -> Result<Json<Value>, RestError> {
+    log::info!("{{\"fn\": \"index_create\", \"method\":\"post\"}}");
+    Ok(Json(json!(state.db.index_create(&db, &coll, payload).await?)))
 }
 
 pub async fn find(

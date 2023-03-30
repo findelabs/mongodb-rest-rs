@@ -2,12 +2,13 @@ use crate::error::Error as RestError;
 use bson::Bson;
 use futures::StreamExt;
 use mongodb::bson::{doc, document::Document, to_bson, to_document};
-use mongodb::options::{FindOneOptions, FindOptions};
+use mongodb::options::{FindOneOptions, FindOptions, IndexOptions};
 use mongodb::{options::ClientOptions, options::ListDatabasesOptions, Client};
+use mongodb::IndexModel;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::handlers::{Aggregate, Find, FindOne};
+use crate::handlers::{Aggregate, Find, FindOne, Index};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Explain {
@@ -51,6 +52,51 @@ impl DB {
         Ok(Self {
             client: Client::with_options(client_options)?,
         })
+    }
+
+    pub async fn index_create(
+        &self,
+        database: &str,
+        collection: &str,
+        payload: Index,
+    ) -> Result<Value> {
+        log::debug!("Creating index on {}.{}", database, collection);
+
+        let mut index_options = IndexOptions::builder().build();
+        if let Some(options) = payload.options {
+            index_options.unique = options.unique;
+            index_options.name = options.name;
+            index_options.partial_filter_expression = options.partial_filter_expression;
+            index_options.sparse = options.sparse;
+            index_options.expire_after = options.expire_after;
+            index_options.hidden = options.hidden;
+            index_options.collation = options.collation;
+            index_options.weights = options.weights;
+            index_options.default_language = options.default_language;
+            index_options.language_override = options.language_override;
+            index_options.text_index_version = options.text_index_version;
+        }
+
+        let index_model = IndexModel::builder() 
+            .keys(payload.keys)
+            .options(Some(index_options))
+            .build();
+
+        let collection = self
+            .client
+            .database(database)
+            .collection::<Document>(collection);
+
+        match collection.create_index(index_model, None).await {
+            Ok(doc) => {
+                log::debug!("Created index");
+                Ok(json!({"message":"Created index", "name": doc.index_name}))
+            },
+            Err(e) => {
+                log::error!("Error creating index: {}", e);
+                return Err(e)?;
+            }
+        }
     }
 
     pub async fn aggregate_explain(
