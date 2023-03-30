@@ -32,6 +32,7 @@ pub struct Find {
     pub sort: Option<Document>,
     pub limit: Option<i64>,
     pub skip: Option<u64>,
+    pub collation: Option<Collation>,
     pub explain: Option<String>,
 }
 

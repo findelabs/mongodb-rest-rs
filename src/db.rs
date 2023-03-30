@@ -2,7 +2,7 @@ use crate::error::Error as RestError;
 use bson::Bson;
 use futures::StreamExt;
 use mongodb::bson::{doc, document::Document, to_bson, to_document};
-use mongodb::options::{FindOneOptions, FindOptions, IndexOptions};
+use mongodb::options::{FindOneOptions, FindOptions, IndexOptions, Collation};
 use mongodb::{options::ClientOptions, options::ListDatabasesOptions, Client};
 use mongodb::IndexModel;
 use serde::{Deserialize, Serialize};
@@ -36,6 +36,8 @@ pub struct FindRaw {
     pub limit: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skip: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub collation: Option<Collation>,
 }
 
 #[derive(Clone, Debug)]
@@ -153,6 +155,7 @@ impl DB {
             projection: payload.projection.clone(),
             limit: payload.limit.clone(),
             skip: payload.skip.clone(),
+            collation: payload.collation.clone(),
         };
 
         let command = Explain {
@@ -231,6 +234,7 @@ impl DB {
         find_options.sort = payload.sort;
         find_options.limit = payload.limit;
         find_options.skip = payload.skip;
+        find_options.collation = payload.collation;
 
         let collection = self
             .client
