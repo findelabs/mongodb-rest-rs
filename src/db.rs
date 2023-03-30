@@ -45,8 +45,7 @@ pub struct DB {
 type Result<T> = std::result::Result<T, RestError>;
 
 impl DB {
-    pub async fn init(url: &str) -> Result<Self> {
-        let mut client_options = ClientOptions::parse(url).await?;
+    pub async fn init(mut client_options: ClientOptions) -> Result<Self> {
         client_options.app_name = Some("mongodb-rest-rs".to_string());
 
         Ok(Self {

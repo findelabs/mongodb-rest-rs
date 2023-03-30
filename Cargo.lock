@@ -1322,7 +1322,7 @@ dependencies = [
 
 [[package]]
 name = "mongodb-rest-rs"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "axum 0.6.12",
  "axum-extra",

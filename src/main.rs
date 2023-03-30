@@ -38,6 +38,14 @@ pub struct Args {
     #[arg(short, long, env = "MONGODB_URI")]
     uri: String,
 
+    /// MongoDB username
+    #[arg(short = 'U', long, requires = "password", env = "MONGODB_USERNAME")]
+    username: Option<String>,
+
+    /// MongoDB username password
+    #[arg(short = 'P', long, requires = "username", env = "MONGODB_PASSWORD")]
+    password: Option<String>,
+
     /// Should connection be readonly?
     #[arg(short, long, env = "MONGODB_READONLY")]
     readonly: bool,
