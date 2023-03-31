@@ -53,7 +53,7 @@ GET /:db/_collections
 GET /:db/:coll/_count
 
 # Get collection indexes
-GET /:db/:coll/_indexes
+GET /:db/:coll/_indexes[?simple]
 
 # Get collection index stats
 GET /:db/:coll/_index_stats
@@ -62,14 +62,14 @@ GET /:db/:coll/_index_stats
 GET /:db/:coll/_stats
 
 # Find a document
-POST /:db/:coll/_find_one
+POST /:db/:coll/_find_one[?simple]
 {
   "filter": {},
   "projection": Option<{}>,
 }
 
 # Find multiple documents
-POST /:db/:coll/_find
+POST /:db/:coll/_find[?simple]
 {
   "filter": {},
   "projection": Option<{}>,
@@ -80,7 +80,7 @@ POST /:db/:coll/_find
 }
 
 # Aggregation
-POST /:db/:coll/_aggregate 
+POST /:db/:coll/_aggregate[?simple] 
 {
   "pipeline": [{}]
   "explain": Option<"queryPlanner | executionStats | allPlansExecution">
@@ -108,6 +108,9 @@ POST /:db/:coll/_index
 
 ### Future
 ``` 
+# Find query, show simple results
+GET /:id/:coll/_find?simple
+
 # Delete index
 DELETE /:db/:coll/_index?name=<index name>
 
@@ -129,6 +132,14 @@ POST /:db/:coll/_replace_one
   "filter": {},
   "replacement": {},
   "upsert": bool
+}
+
+# Distinct
+POST /:db/:coll/_distinct
+{
+  "field_name": String,
+  "filter": {},
+  "options": DistinctOptions
 }
 
 # DeleteOne/Delete

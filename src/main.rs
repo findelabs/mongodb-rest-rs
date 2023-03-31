@@ -1,7 +1,7 @@
 use axum::{
     extract::Extension,
     middleware,
-    routing::{get, post},
+    routing::{get, post, delete},
     Router,
 };
 use chrono::Local;
@@ -23,7 +23,7 @@ use crate::metrics::{setup_metrics_recorder, track_metrics};
 use handlers::{
     aggregate, coll_count, coll_index_stats, coll_indexes, coll_stats, databases, db_colls,
     db_stats, echo, find, find_one, handler_404, health, help, root, rs_conn, rs_log,
-    rs_operations, rs_pool, rs_stats, rs_status, rs_top, index_create
+    rs_operations, rs_pool, rs_stats, rs_status, rs_top, index_create, index_delete
 };
 use state::State;
 
@@ -91,6 +91,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .route("/:db/:coll/_count", get(coll_count))
         .route("/:db/:coll/_indexes", get(coll_indexes))
         .route("/:db/:coll/_index", post(index_create))
+        .route("/:db/:coll/_index", delete(index_delete))
         .route("/:db/:coll/_index_stats", get(coll_index_stats))
         .route("/:db/:coll/_find_one", post(find_one))
         .route("/:db/:coll/_find", post(find))

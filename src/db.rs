@@ -8,7 +8,7 @@ use mongodb::IndexModel;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::handlers::{Aggregate, Find, FindOne, Index};
+use crate::handlers::{Aggregate, Find, FindOne, Index, QueriesStandard, QueriesDelete};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Explain {
@@ -54,6 +54,31 @@ impl DB {
         Ok(Self {
             client: Client::with_options(client_options)?,
         })
+    }
+
+    pub async fn index_delete(
+        &self,
+        database: &str,
+        collection: &str,
+        queries: &QueriesDelete,
+    ) -> Result<Value> {
+        log::debug!("Deleting index {} on {}.{}", queries.name, database, collection);
+
+        let collection = self
+            .client
+            .database(database)
+            .collection::<Document>(collection);
+
+        match collection.drop_index(queries.name.to_string(), None).await {
+            Ok(_) => {
+                log::debug!("Deleted index");
+                Ok(json!({"message":"deleted index", "name": queries.name}))
+            },
+            Err(e) => {
+                log::error!("Error deleting index: {}", e);
+                return Err(e)?;
+            }
+        }
     }
 
     pub async fn index_create(
@@ -186,6 +211,7 @@ impl DB {
         database: &str,
         collection: &str,
         payload: Aggregate,
+        queries: &QueriesStandard
     ) -> Result<Vec<Value>> {
         if payload.explain.is_some() {
             return self.aggregate_explain(database, collection, payload).await;
@@ -202,7 +228,11 @@ impl DB {
         while let Some(doc) = cursor.next().await {
             match doc {
                 Ok(conv) => {
-                    let bson = to_bson(&conv)?.into_relaxed_extjson();
+                    let bson = if queries.simple.is_some() {
+                        to_bson(&conv)?.into_relaxed_extjson()
+                    } else {
+                        to_bson(&conv)?.into_canonical_extjson()
+                    };
                     result.push(bson);
                 }
                 Err(e) => {
@@ -220,6 +250,7 @@ impl DB {
         database: &str,
         collection: &str,
         payload: Find,
+        queries: &QueriesStandard
     ) -> Result<Vec<Value>> {
         if payload.explain.is_some() {
             return self.find_explain(database, collection, payload).await;
@@ -247,7 +278,11 @@ impl DB {
         while let Some(doc) = cursor.next().await {
             match doc {
                 Ok(conv) => {
-                    let bson = to_bson(&conv)?.into_relaxed_extjson();
+                    let bson = if queries.simple.is_some() {
+                        to_bson(&conv)?.into_relaxed_extjson()
+                    } else {
+                        to_bson(&conv)?.into_canonical_extjson()
+                    };
                     result.push(bson);
                 }
                 Err(e) => {
@@ -265,6 +300,7 @@ impl DB {
         database: &str,
         collection: &str,
         payload: FindOne,
+        queries: &QueriesStandard
     ) -> Result<Value> {
         log::debug!("Searching {}.{}", database, collection);
 
@@ -282,7 +318,11 @@ impl DB {
             Ok(result) => match result {
                 Some(doc) => {
                     log::debug!("Found a result");
-                    let bson = to_bson(&doc)?.into_relaxed_extjson();
+                    let bson = if queries.simple.is_some() {
+                        to_bson(&doc)?.into_relaxed_extjson()
+                    } else {
+                        to_bson(&doc)?.into_canonical_extjson()
+                    };
                     Ok(bson)
                 }
                 None => {
@@ -572,7 +612,11 @@ impl DB {
             explain: None,
         };
 
-        match self.aggregate(database, collection, payload).await {
+        let queries = QueriesStandard {
+            simple: Some(true)
+        };
+
+        match self.aggregate(database, collection, payload, &queries).await {
             Ok(output) => {
                 log::debug!("Successfully got IndexStats");
                 Ok(output)

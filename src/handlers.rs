@@ -1,5 +1,5 @@
 use axum::{
-    extract::{OriginalUri, Path},
+    extract::{OriginalUri, Path, Query},
     http::StatusCode,
     response::IntoResponse,
     Extension, Json,
@@ -15,9 +15,15 @@ use serde_json::Value;
 use crate::error::Error as RestError;
 use crate::State;
 
-// This is required in order to get the method from the request
-#[derive(Debug)]
-pub struct RequestMethod(pub hyper::Method);
+#[derive(Deserialize)]
+pub struct QueriesStandard {
+    pub simple: Option<bool>,
+}
+
+#[derive(Deserialize)]
+pub struct QueriesDelete {
+    pub name: String,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FindOne {
@@ -78,10 +84,20 @@ pub struct IndexCollation{
 pub async fn aggregate(
     Extension(state): Extension<State>,
     Path((db, coll)): Path<(String, String)>,
+    queries: Query<QueriesStandard>,
     Json(payload): Json<Aggregate>,
 ) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"find_one\", \"method\":\"post\"}}");
-    Ok(Json(json!(state.db.aggregate(&db, &coll, payload).await?)))
+    Ok(Json(json!(state.db.aggregate(&db, &coll, payload, &queries).await?)))
+}
+
+pub async fn index_delete(
+    Extension(state): Extension<State>,
+    Path((db, coll)): Path<(String, String)>,
+    queries: Query<QueriesDelete>,
+) -> Result<Json<Value>, RestError> {
+    log::info!("{{\"fn\": \"index_create\", \"method\":\"post\"}}");
+    Ok(Json(json!(state.db.index_delete(&db, &coll, &queries).await?)))
 }
 
 pub async fn index_create(
@@ -96,19 +112,21 @@ pub async fn index_create(
 pub async fn find(
     Extension(state): Extension<State>,
     Path((db, coll)): Path<(String, String)>,
+    queries: Query<QueriesStandard>,
     Json(payload): Json<Find>,
 ) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"find_one\", \"method\":\"post\"}}");
-    Ok(Json(json!(state.db.find(&db, &coll, payload).await?)))
+    Ok(Json(json!(state.db.find(&db, &coll, payload, &queries).await?)))
 }
 
 pub async fn find_one(
     Extension(state): Extension<State>,
     Path((db, coll)): Path<(String, String)>,
+    queries: Query<QueriesStandard>,
     Json(payload): Json<FindOne>,
 ) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"find_one\", \"method\":\"post\"}}");
-    Ok(Json(json!(state.db.find_one(&db, &coll, payload).await?)))
+    Ok(Json(json!(state.db.find_one(&db, &coll, payload, &queries).await?)))
 }
 
 pub async fn rs_status(Extension(state): Extension<State>) -> Result<Json<Value>, RestError> {
