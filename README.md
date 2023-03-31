@@ -65,15 +65,15 @@ GET /:db/:coll/_stats
 POST /:db/:coll/_find_one[?simple]
 {
   "filter": {},
-  "projection": Option<{}>,
+  "projection": Option<Document>,
 }
 
 # Find multiple documents
 POST /:db/:coll/_find[?simple]
 {
-  "filter": {},
-  "projection": Option<{}>,
-  "sort": Option<{}>,
+  "filter": Document,
+  "projection": Option<Document>,
+  "sort": Option<Document>,
   "limit": Option<u64>,
   "skip": Option<u64>,
   "explain": Option<"queryPlanner | executionStats | allPlansExecution">
@@ -82,7 +82,8 @@ POST /:db/:coll/_find[?simple]
 # Aggregation
 POST /:db/:coll/_aggregate[?simple] 
 {
-  "pipeline": [{}]
+  "pipeline": [Document],
+  "options": Option<Document>,
   "explain": Option<"queryPlanner | executionStats | allPlansExecution">
 }
 
