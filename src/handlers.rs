@@ -5,7 +5,7 @@ use axum::{
     Extension, Json,
 };
 use core::time::Duration;
-use mongodb::options::{CollationCaseFirst, CollationStrength, CollationAlternate, CollationMaxVariable, Collation, TextIndexVersion};
+use mongodb::options::{CollationCaseFirst, CollationStrength, CollationAlternate, CollationMaxVariable, Collation, TextIndexVersion, AggregateOptions};
 use bson::Document;
 use clap::{crate_description, crate_name, crate_version};
 use serde::{Deserialize, Serialize};
@@ -45,6 +45,7 @@ pub struct Find {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Aggregate {
     pub pipeline: Vec<Document>,
+    pub options: Option<AggregateOptions>,
     pub explain: Option<String>,
 }
 

@@ -222,7 +222,7 @@ impl DB {
             .database(&database)
             .collection::<Document>(collection);
 
-        let mut cursor = collection.aggregate(payload.pipeline, None).await?;
+        let mut cursor = collection.aggregate(payload.pipeline, payload.options).await?;
 
         let mut result: Vec<Value> = Vec::new();
         while let Some(doc) = cursor.next().await {
@@ -609,6 +609,7 @@ impl DB {
 
         let payload = Aggregate {
             pipeline: commands,
+            options: None,
             explain: None,
         };
 
