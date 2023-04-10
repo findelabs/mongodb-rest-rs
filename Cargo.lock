@@ -1333,6 +1333,7 @@ dependencies = [
  "clap",
  "env_logger",
  "futures",
+ "futures-util",
  "hyper",
  "hyper-tls",
  "log",

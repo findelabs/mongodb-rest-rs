@@ -23,7 +23,7 @@ use crate::metrics::{setup_metrics_recorder, track_metrics};
 use handlers::{
     aggregate, coll_count, coll_index_stats, coll_indexes, coll_stats, databases, db_colls,
     db_stats, echo, find, find_one, handler_404, health, help, root, rs_conn, rs_log,
-    rs_operations, rs_pool, rs_stats, rs_status, rs_top, index_create, index_delete
+    rs_operations, rs_pool, rs_stats, rs_status, rs_top, index_create, index_delete, watch
 };
 use state::State;
 
@@ -97,6 +97,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .route("/:db/:coll/_find", post(find))
         .route("/:db/:coll/_stats", get(coll_stats))
         .route("/:db/:coll/_aggregate", post(aggregate))
+        .route("/:db/:coll/_watch", post(watch))
         .route("/", get(root));
 
     // These should NOT be authenticated

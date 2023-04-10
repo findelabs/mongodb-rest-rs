@@ -1,11 +1,14 @@
 use axum::{
     extract::{OriginalUri, Path, Query},
+    body::StreamBody,
     http::StatusCode,
     response::IntoResponse,
     Extension, Json,
 };
 use core::time::Duration;
-use mongodb::options::{CollationCaseFirst, CollationStrength, CollationAlternate, CollationMaxVariable, Collation, TextIndexVersion, AggregateOptions};
+use futures::Stream;
+use mongodb::options::{CollationCaseFirst, CollationStrength, CollationAlternate, CollationMaxVariable, Collation, TextIndexVersion, AggregateOptions, FindOptions, FindOneOptions, ChangeStreamOptions};
+use mongodb::change_stream::event::ChangeStreamEvent;
 use bson::Document;
 use clap::{crate_description, crate_name, crate_version};
 use serde::{Deserialize, Serialize};
@@ -15,9 +18,25 @@ use serde_json::Value;
 use crate::error::Error as RestError;
 use crate::State;
 
+#[derive(Debug, Deserialize, Serialize)]
+pub enum Formats {
+    #[serde(rename = "json")]
+    Json,
+    #[serde(rename = "ejson")]
+    Ejson
+}
+
+impl Default for Formats {
+    fn default() -> Self { Formats::Json }
+}
+
+impl Default for QueriesFormat {
+    fn default() -> Self { QueriesFormat {format: Some(Formats::default())  }}
+}
+
 #[derive(Deserialize)]
-pub struct QueriesStandard {
-    pub simple: Option<bool>,
+pub struct QueriesFormat {
+    pub format: Option<Formats>
 }
 
 #[derive(Deserialize)]
@@ -25,37 +44,39 @@ pub struct QueriesDelete {
     pub name: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct FindOne {
     pub filter: Document,
-    pub projection: Option<Document>,
+    pub options: Option<FindOneOptions>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Find {
     pub filter: Document,
-    pub projection: Option<Document>,
-    pub sort: Option<Document>,
-    pub limit: Option<i64>,
-    pub skip: Option<u64>,
-    pub collation: Option<Collation>,
+    pub options: Option<FindOptions>,
     pub explain: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone)]
+pub struct Watch {
+    pub pipeline: Vec<Document>,
+    pub options: Option<ChangeStreamOptions>
+}
+
+#[derive(Deserialize, Debug, Clone)]
 pub struct Aggregate {
     pub pipeline: Vec<Document>,
     pub options: Option<AggregateOptions>,
     pub explain: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Index {
     pub keys: Document,
     pub options: Option<IndexCreateOptions>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct IndexCreateOptions {
     pub unique: Option<bool>,
     pub name: Option<String>,
@@ -70,7 +91,7 @@ pub struct IndexCreateOptions {
     pub text_index_version: Option<TextIndexVersion>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct IndexCollation{
     pub locale: Option<String>,
     pub case_level: Option<bool>,
@@ -82,10 +103,20 @@ pub struct IndexCollation{
     pub backwards: Option<bool>
 }
 
+pub async fn watch(
+    Extension(state): Extension<State>,
+    Path((db, coll)): Path<(String, String)>,
+    queries: Query<QueriesFormat>,
+    Json(payload): Json<Watch>,
+) -> Result<StreamBody<impl Stream<Item = Result<ChangeStreamEvent, RestError>>>, RestError> {
+    log::info!("{{\"fn\": \"find_one\", \"method\":\"post\"}}");
+    state.db.watch(&db, &coll, payload, &queries).await
+}
+
 pub async fn aggregate(
     Extension(state): Extension<State>,
     Path((db, coll)): Path<(String, String)>,
-    queries: Query<QueriesStandard>,
+    queries: Query<QueriesFormat>,
     Json(payload): Json<Aggregate>,
 ) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"find_one\", \"method\":\"post\"}}");
@@ -113,7 +144,7 @@ pub async fn index_create(
 pub async fn find(
     Extension(state): Extension<State>,
     Path((db, coll)): Path<(String, String)>,
-    queries: Query<QueriesStandard>,
+    queries: Query<QueriesFormat>,
     Json(payload): Json<Find>,
 ) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"find_one\", \"method\":\"post\"}}");
@@ -123,7 +154,7 @@ pub async fn find(
 pub async fn find_one(
     Extension(state): Extension<State>,
     Path((db, coll)): Path<(String, String)>,
-    queries: Query<QueriesStandard>,
+    queries: Query<QueriesFormat>,
     Json(payload): Json<FindOne>,
 ) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"find_one\", \"method\":\"post\"}}");
@@ -204,10 +235,11 @@ pub async fn coll_count(
 
 pub async fn coll_indexes(
     Extension(state): Extension<State>,
+    queries: Query<QueriesFormat>,
     Path((db, coll)): Path<(String, String)>,
 ) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"coll_indexes\", \"method\":\"get\"}}");
-    Ok(Json(json!(state.db.coll_indexes(&db, &coll).await?)))
+    Ok(Json(json!(state.db.coll_indexes(&db, &coll, &queries).await?)))
 }
 
 pub async fn coll_index_stats(

@@ -1,14 +1,17 @@
+use axum::body::StreamBody;
 use crate::error::Error as RestError;
 use bson::Bson;
 use futures::StreamExt;
 use mongodb::bson::{doc, document::Document, to_bson, to_document};
-use mongodb::options::{FindOneOptions, FindOptions, IndexOptions, Collation};
+use mongodb::options::{IndexOptions, Collation};
 use mongodb::{options::ClientOptions, options::ListDatabasesOptions, Client};
 use mongodb::IndexModel;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use futures_util::stream::{self, Stream};
+use mongodb::change_stream::event::ChangeStreamEvent;
 
-use crate::handlers::{Aggregate, Find, FindOne, Index, QueriesStandard, QueriesDelete};
+use crate::handlers::{Aggregate, Find, FindOne, Index, QueriesFormat, QueriesDelete, Formats, Watch};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Explain {
@@ -170,17 +173,17 @@ impl DB {
         collection: &str,
         payload: Find,
     ) -> Result<Vec<Value>> {
-        // Log which collection this is going into
+        // Log which collection this is accessing
         log::debug!("Explaining search in {}.{}", database, collection);
 
         let find_raw = FindRaw {
             find: collection.to_string(),
             filter: payload.filter.clone(),
-            sort: payload.sort.clone(),
-            projection: payload.projection.clone(),
-            limit: payload.limit.clone(),
-            skip: payload.skip.clone(),
-            collation: payload.collation.clone(),
+            sort: payload.options.clone().map_or(None, |x| x.sort.clone()),
+            projection: payload.options.clone().map_or(None, |x| x.projection.clone()),
+            limit: payload.options.clone().map_or(None, |x| x.limit.clone()),
+            skip: payload.options.clone().map_or(None, |x| x.skip.clone()),
+            collation: payload.options.clone().map_or(None, |x| x.collation.clone())
         };
 
         let command = Explain {
@@ -206,12 +209,29 @@ impl DB {
         }
     }
 
+    pub async fn watch(
+        &self,
+        database: &str,
+        collection: &str,
+        payload: Watch,
+        queries: &QueriesFormat
+    ) -> Result<StreamBody<impl Stream<Item = Result<ChangeStreamEvent>>>> {
+        let collection = self
+            .client
+            .database(&database)
+            .collection::<Document>(collection);
+
+        let mut cursor = collection.watch(payload.pipeline, payload.options).await?;
+
+        Ok(StreamBody::new(cursor))
+    }
+
     pub async fn aggregate(
         &self,
         database: &str,
         collection: &str,
         payload: Aggregate,
-        queries: &QueriesStandard
+        queries: &QueriesFormat
     ) -> Result<Vec<Value>> {
         if payload.explain.is_some() {
             return self.aggregate_explain(database, collection, payload).await;
@@ -228,10 +248,13 @@ impl DB {
         while let Some(doc) = cursor.next().await {
             match doc {
                 Ok(conv) => {
-                    let bson = if queries.simple.is_some() {
-                        to_bson(&conv)?.into_relaxed_extjson()
-                    } else {
-                        to_bson(&conv)?.into_canonical_extjson()
+                    let bson  = match &queries.format {
+                        None | Some(Formats::Json) => {
+                            to_bson(&conv)?.into_relaxed_extjson()
+                        },
+                        Some(Formats::Ejson) => {
+                            to_bson(&conv)?.into_canonical_extjson()
+                        }
                     };
                     result.push(bson);
                 }
@@ -250,7 +273,7 @@ impl DB {
         database: &str,
         collection: &str,
         payload: Find,
-        queries: &QueriesStandard
+        queries: &QueriesFormat
     ) -> Result<Vec<Value>> {
         if payload.explain.is_some() {
             return self.find_explain(database, collection, payload).await;
@@ -259,29 +282,24 @@ impl DB {
         // Log which collection this is going into
         log::debug!("Searching {}.{}", database, collection);
 
-        let mut find_options = FindOptions::builder().build();
-
-        find_options.projection = payload.projection;
-        find_options.sort = payload.sort;
-        find_options.limit = payload.limit;
-        find_options.skip = payload.skip;
-        find_options.collation = payload.collation;
-
         let collection = self
             .client
             .database(database)
             .collection::<Document>(collection);
 
-        let mut cursor = collection.find(payload.filter, find_options).await?;
+        let mut cursor = collection.find(payload.filter, payload.options).await?;
 
         let mut result: Vec<Value> = Vec::new();
-        while let Some(doc) = cursor.next().await {
-            match doc {
-                Ok(conv) => {
-                    let bson = if queries.simple.is_some() {
-                        to_bson(&conv)?.into_relaxed_extjson()
-                    } else {
-                        to_bson(&conv)?.into_canonical_extjson()
+        while let Some(next) = cursor.next().await {
+            match next {
+                Ok(doc) => {
+                    let bson  = match &queries.format {
+                        None | Some(Formats::Json) => {
+                            to_bson(&doc)?.into_relaxed_extjson()
+                        },
+                        Some(Formats::Ejson) => {
+                            to_bson(&doc)?.into_canonical_extjson()
+                        }
                     };
                     result.push(bson);
                 }
@@ -300,28 +318,26 @@ impl DB {
         database: &str,
         collection: &str,
         payload: FindOne,
-        queries: &QueriesStandard
+        queries: &QueriesFormat
     ) -> Result<Value> {
         log::debug!("Searching {}.{}", database, collection);
-
-        let find_one_options = match payload.projection {
-            Some(p) => Some(FindOneOptions::builder().projection(p).build()),
-            None => None,
-        };
 
         let collection = self
             .client
             .database(database)
             .collection::<Document>(collection);
 
-        match collection.find_one(payload.filter, find_one_options).await {
+        match collection.find_one(payload.filter, payload.options).await {
             Ok(result) => match result {
                 Some(doc) => {
                     log::debug!("Found a result");
-                    let bson = if queries.simple.is_some() {
-                        to_bson(&doc)?.into_relaxed_extjson()
-                    } else {
-                        to_bson(&doc)?.into_canonical_extjson()
+                    let bson  = match &queries.format {
+                        None | Some(Formats::Json) => {
+                            to_bson(&doc)?.into_relaxed_extjson()
+                        },
+                        Some(Formats::Ejson) => {
+                            to_bson(&doc)?.into_canonical_extjson()
+                        }
                     };
                     Ok(bson)
                 }
@@ -375,27 +391,38 @@ impl DB {
         }
     }
 
-    pub async fn coll_indexes(&self, database: &str, collection: &str) -> Result<Value> {
+    pub async fn coll_indexes(&self, database: &str, collection: &str, queries: &QueriesFormat) -> Result<Value> {
         log::debug!("Getting indexes in {}", database);
 
-        let db = self.client.database(&database);
-        let command = doc! { "listIndexes": collection };
+        let collection = self
+            .client
+            .database(database)
+            .collection::<Document>(collection);
 
-        match db.run_command(command, None).await {
-            Ok(indexes) => {
-                log::debug!("Successfully got indexes in {}.{}", database, collection);
-                let results = indexes
-                    .get_document("cursor")
-                    .expect("Successfully got indexes, but failed to extract cursor")
-                    .clone();
-                let bson = to_bson(&results)?.into_relaxed_extjson();
-                Ok(bson)
-            }
-            Err(e) => {
-                log::error!("Got error {}", e);
-                return Err(e)?;
+        let mut cursor = collection.list_indexes(None).await?;
+
+        let mut result: Vec<Value> = Vec::new();
+        while let Some(next) = cursor.next().await {
+            match next {
+                Ok(doc) => {
+                    let bson  = match &queries.format {
+                        None | Some(Formats::Json) => {
+                            to_bson(&doc)?.into_relaxed_extjson()
+                        },
+                        Some(Formats::Ejson) => {
+                            to_bson(&doc)?.into_canonical_extjson()
+                        }
+                    };
+                    result.push(bson);
+                }
+                Err(e) => {
+                    log::error!("Caught error, skipping: {}", e);
+                    continue;
+                }
             }
         }
+        let result = result.into_iter().rev().collect();
+        Ok(result)
     }
 
     pub async fn rs_status(&self) -> Result<Value> {
@@ -613,9 +640,7 @@ impl DB {
             explain: None,
         };
 
-        let queries = QueriesStandard {
-            simple: Some(true)
-        };
+        let queries = QueriesFormat::default();
 
         match self.aggregate(database, collection, payload, &queries).await {
             Ok(output) => {
