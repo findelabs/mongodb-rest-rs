@@ -1,5 +1,6 @@
 use axum::{
     extract::{OriginalUri, Path, Query},
+    body::Bytes,
     body::StreamBody,
     http::StatusCode,
     response::IntoResponse,
@@ -8,12 +9,13 @@ use axum::{
 use core::time::Duration;
 use futures::Stream;
 use mongodb::options::{CollationCaseFirst, CollationStrength, CollationAlternate, CollationMaxVariable, Collation, TextIndexVersion, AggregateOptions, FindOptions, FindOneOptions, ChangeStreamOptions};
-use mongodb::change_stream::event::ChangeStreamEvent;
+//use mongodb::change_stream::event::ChangeStreamEvent;
 use bson::Document;
 use clap::{crate_description, crate_name, crate_version};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::Value;
+use std::io;
 
 use crate::error::Error as RestError;
 use crate::State;
@@ -108,7 +110,7 @@ pub async fn watch(
     Path((db, coll)): Path<(String, String)>,
     queries: Query<QueriesFormat>,
     Json(payload): Json<Watch>,
-) -> Result<StreamBody<impl Stream<Item = Result<ChangeStreamEvent, RestError>>>, RestError> {
+) -> StreamBody<impl Stream<Item = io::Result<Bytes>>> {
     log::info!("{{\"fn\": \"find_one\", \"method\":\"post\"}}");
     state.db.watch(&db, &coll, payload, &queries).await
 }

@@ -1,6 +1,8 @@
 use axum::body::StreamBody;
+use axum::body::Bytes;
 use crate::error::Error as RestError;
 use bson::Bson;
+use bson::to_vec;
 use futures::StreamExt;
 use mongodb::bson::{doc, document::Document, to_bson, to_document};
 use mongodb::options::{IndexOptions, Collation};
@@ -9,7 +11,8 @@ use mongodb::IndexModel;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use futures_util::stream::{self, Stream};
-use mongodb::change_stream::event::ChangeStreamEvent;
+use std::io;
+//use mongodb::change_stream::event::ChangeStreamEvent;
 
 use crate::handlers::{Aggregate, Find, FindOne, Index, QueriesFormat, QueriesDelete, Formats, Watch};
 
@@ -215,15 +218,30 @@ impl DB {
         collection: &str,
         payload: Watch,
         queries: &QueriesFormat
-    ) -> Result<StreamBody<impl Stream<Item = Result<ChangeStreamEvent>>>> {
+    ) -> StreamBody<impl Stream<Item = io::Result<Bytes>>> {
         let collection = self
             .client
             .database(&database)
             .collection::<Document>(collection);
 
-        let mut cursor = collection.watch(payload.pipeline, payload.options).await?;
+        let mut cursor = collection.watch(payload.pipeline, payload.options).await.unwrap();
 
-        Ok(StreamBody::new(cursor))
+        StreamBody::new(cursor.map(|d| match d {
+            Ok(o) => Ok({
+                log::debug!("Caught change stream event: {:?}", o);
+
+                match o.full_document {
+                    Some(doc) => {
+                        let vector = to_vec(&doc).unwrap();
+                        Bytes::from(vector)
+                    },
+                    None => {
+                        Bytes::from("error".as_bytes())
+                    }
+                }
+            }),
+            Err(e) => Err(io::Error::from(io::ErrorKind::UnexpectedEof))
+        }))
     }
 
     pub async fn aggregate(
