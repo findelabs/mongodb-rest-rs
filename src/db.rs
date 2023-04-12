@@ -222,6 +222,10 @@ impl DB {
 
         let cursor = collection.watch(payload.pipeline, payload.options).await?;
 
+        // This was the simplest way to get this to work
+        // Trying to map the items to Bytes did not work, and would cause the connection to drop
+        // However, get'ing a single field from the ChangeStream doc would work, only if the var was to_owned()
+        // However, I couldn't get the full document to persist
         Ok(StreamBody::new(cursor.map(|d| match d {
             Ok(o) => {
                 log::debug!("Change stream event: {:?}", o);
