@@ -218,22 +218,25 @@ impl DB {
         collection: &str,
         payload: Watch,
         queries: &QueriesFormat
-    ) -> StreamBody<impl Stream<Item = io::Result<Bytes>>> {
+    ) -> Result<StreamBody<impl Stream<Item = io::Result<Bytes>>>> {
         let collection = self
             .client
             .database(&database)
             .collection::<Document>(collection);
 
-        let mut cursor = collection.watch(payload.pipeline, payload.options).await.unwrap();
+        let mut cursor = collection.watch(payload.pipeline, payload.options).await?;
 
-        StreamBody::new(cursor.map(|d| match d {
+        Ok(StreamBody::new(cursor.map(|d| match d {
             Ok(o) => Ok({
                 log::debug!("Caught change stream event: {:?}", o);
 
                 match o.full_document {
                     Some(doc) => {
+                        log::debug!("Narrowing doc to: {}", doc);
                         let vector = to_vec(&doc).unwrap();
-                        Bytes::from(vector)
+                        log::debug!("Converted doc to vector");
+                        Bytes::from("success".as_bytes())
+                        //Bytes::from(vector)
                     },
                     None => {
                         Bytes::from("error".as_bytes())
@@ -241,7 +244,7 @@ impl DB {
                 }
             }),
             Err(e) => Err(io::Error::from(io::ErrorKind::UnexpectedEof))
-        }))
+        })))
     }
 
     pub async fn aggregate(

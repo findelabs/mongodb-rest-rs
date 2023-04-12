@@ -110,7 +110,7 @@ pub async fn watch(
     Path((db, coll)): Path<(String, String)>,
     queries: Query<QueriesFormat>,
     Json(payload): Json<Watch>,
-) -> StreamBody<impl Stream<Item = io::Result<Bytes>>> {
+) -> Result<StreamBody<impl Stream<Item = io::Result<Bytes>>>, RestError> {
     log::info!("{{\"fn\": \"find_one\", \"method\":\"post\"}}");
     state.db.watch(&db, &coll, payload, &queries).await
 }
