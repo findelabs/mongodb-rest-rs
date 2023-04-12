@@ -15,7 +15,6 @@ use clap::{crate_description, crate_name, crate_version};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::Value;
-use std::io;
 
 use crate::error::Error as RestError;
 use crate::State;
@@ -108,11 +107,10 @@ pub struct IndexCollation{
 pub async fn watch(
     Extension(state): Extension<State>,
     Path((db, coll)): Path<(String, String)>,
-    queries: Query<QueriesFormat>,
     Json(payload): Json<Watch>,
-) -> Result<StreamBody<impl Stream<Item = io::Result<Bytes>>>, RestError> {
-    log::info!("{{\"fn\": \"find_one\", \"method\":\"post\"}}");
-    state.db.watch(&db, &coll, payload, &queries).await
+) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
+    log::info!("{{\"fn\": \"watch\", \"method\":\"post\"}}");
+    state.db.watch(&db, &coll, payload).await
 }
 
 pub async fn aggregate(

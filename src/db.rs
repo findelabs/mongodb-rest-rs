@@ -2,7 +2,6 @@ use axum::body::StreamBody;
 use axum::body::Bytes;
 use crate::error::Error as RestError;
 use bson::Bson;
-use bson::to_vec;
 use futures::StreamExt;
 use mongodb::bson::{doc, document::Document, to_bson, to_document};
 use mongodb::options::{IndexOptions, Collation};
@@ -10,9 +9,7 @@ use mongodb::{options::ClientOptions, options::ListDatabasesOptions, Client};
 use mongodb::IndexModel;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use futures_util::stream::{self, Stream};
-use std::io;
-//use mongodb::change_stream::event::ChangeStreamEvent;
+use futures::Stream;
 
 use crate::handlers::{Aggregate, Find, FindOne, Index, QueriesFormat, QueriesDelete, Formats, Watch};
 
@@ -217,33 +214,21 @@ impl DB {
         database: &str,
         collection: &str,
         payload: Watch,
-        queries: &QueriesFormat
-    ) -> Result<StreamBody<impl Stream<Item = io::Result<Bytes>>>> {
+    ) -> Result<StreamBody<impl Stream<Item = Result<Bytes>>>> {
         let collection = self
             .client
             .database(&database)
             .collection::<Document>(collection);
 
-        let mut cursor = collection.watch(payload.pipeline, payload.options).await?;
+        let cursor = collection.watch(payload.pipeline, payload.options).await?;
 
         Ok(StreamBody::new(cursor.map(|d| match d {
-            Ok(o) => Ok({
-                log::debug!("Caught change stream event: {:?}", o);
-
-                match o.full_document {
-                    Some(doc) => {
-                        log::debug!("Narrowing doc to: {}", doc);
-                        let vector = to_vec(&doc).unwrap();
-                        log::debug!("Converted doc to vector");
-                        Bytes::from("success".as_bytes())
-                        //Bytes::from(vector)
-                    },
-                    None => {
-                        Bytes::from("error".as_bytes())
-                    }
-                }
-            }),
-            Err(e) => Err(io::Error::from(io::ErrorKind::UnexpectedEof))
+            Ok(o) => {
+                log::debug!("Change stream event: {:?}", o);
+                let string = format!("{:?}", o);
+                Ok(string.into())
+            },
+            Err(e) => Err(e)?
         })))
     }
 
