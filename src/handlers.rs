@@ -19,7 +19,7 @@ use serde_json::Value;
 use crate::error::Error as RestError;
 use crate::State;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum Formats {
     #[serde(rename = "json")]
     Json,
@@ -35,7 +35,7 @@ impl Default for QueriesFormat {
     fn default() -> Self { QueriesFormat {format: Some(Formats::default())  }}
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct QueriesFormat {
     pub format: Option<Formats>
 }
@@ -107,10 +107,11 @@ pub struct IndexCollation{
 pub async fn watch(
     Extension(state): Extension<State>,
     Path((db, coll)): Path<(String, String)>,
+    queries: Query<QueriesFormat>,
     Json(payload): Json<Watch>,
 ) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
     log::info!("{{\"fn\": \"watch\", \"method\":\"post\"}}");
-    state.db.watch(&db, &coll, payload).await
+    state.db.watch(&db, &coll, payload, queries).await
 }
 
 pub async fn aggregate(

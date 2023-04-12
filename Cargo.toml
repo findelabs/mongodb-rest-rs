@@ -1,6 +1,6 @@
 [package]
 name = "mongodb-rest-rs"
-version = "0.2.9"
+version = "0.2.10"
 authors = ["Verticaleap"]
 edition = "2021"
 

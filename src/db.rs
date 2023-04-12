@@ -1,5 +1,6 @@
 use axum::body::StreamBody;
 use axum::body::Bytes;
+use axum::extract::Query;
 use crate::error::Error as RestError;
 use bson::Bson;
 use futures::StreamExt;
@@ -214,6 +215,7 @@ impl DB {
         database: &str,
         collection: &str,
         payload: Watch,
+        queries: Query<QueriesFormat>
     ) -> Result<StreamBody<impl Stream<Item = Result<Bytes>>>> {
         let collection = self
             .client
@@ -226,14 +228,25 @@ impl DB {
         // Trying to map the items to Bytes did not work, and would cause the connection to drop
         // However, get'ing a single field from the ChangeStream doc would work, only if the var was to_owned()
         // However, I couldn't get the full document to persist
-        Ok(StreamBody::new(cursor.map(|d| match d {
-            Ok(o) => {
-                let doc = to_document(&o)?;
-                log::debug!("Change stream event: {:?}", doc);
-                let string = format!("{}\n", doc);
-                Ok(string.into())
-            },
-            Err(e) => Err(e)?
+
+
+        Ok(StreamBody::new(cursor.map(move |d| {
+            match d {
+                Ok(o) => {
+                    let bson  = match queries.clone().format {
+                        None | Some(Formats::Json) => {
+                            to_bson(&o)?.into_relaxed_extjson()
+                        },
+                        Some(Formats::Ejson) => {
+                            to_bson(&o)?.into_canonical_extjson()
+                        }
+                    };
+                    log::debug!("Change stream event: {:?}", bson);
+                    let string = format!("{}\n", bson);
+                    Ok(string.into())
+                },
+                Err(e) => Err(e)?
+            }
         })))
     }
 
