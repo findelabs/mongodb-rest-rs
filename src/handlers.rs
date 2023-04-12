@@ -147,9 +147,9 @@ pub async fn find(
     Path((db, coll)): Path<(String, String)>,
     queries: Query<QueriesFormat>,
     Json(payload): Json<Find>,
-) -> Result<Json<Value>, RestError> {
+) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
     log::info!("{{\"fn\": \"find_one\", \"method\":\"post\"}}");
-    Ok(Json(json!(state.db.find(&db, &coll, payload, &queries).await?)))
+    state.db.find(&db, &coll, payload, queries).await
 }
 
 pub async fn find_one(

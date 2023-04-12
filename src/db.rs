@@ -3,7 +3,8 @@ use axum::body::Bytes;
 use axum::extract::Query;
 use crate::error::Error as RestError;
 use bson::Bson;
-use futures::StreamExt;
+use futures::stream::{self, StreamExt};
+use futures::TryStreamExt;
 use mongodb::bson::{doc, document::Document, to_bson, to_document};
 use mongodb::options::{IndexOptions, Collation};
 use mongodb::{options::ClientOptions, options::ListDatabasesOptions, Client};
@@ -173,7 +174,7 @@ impl DB {
         database: &str,
         collection: &str,
         payload: Find,
-    ) -> Result<Vec<Value>> {
+    ) -> Result<Vec<Result<Bytes>>> {
         // Log which collection this is accessing
         log::debug!("Explaining search in {}.{}", database, collection);
 
@@ -195,19 +196,21 @@ impl DB {
 
         let db = self.client.database(database);
 
-        match db.run_command(to_document(&command)?, None).await {
+        let vec = match db.run_command(to_document(&command)?, None).await {
             Ok(mut c) => {
                 log::debug!("Successfully ran explain in {}.{}", database, collection);
                 c.remove("$clusterTime");
                 c.remove("operationTime");
                 let bson = to_bson(&c)?.into_relaxed_extjson();
-                Ok(vec![bson])
+                vec![Ok(bson::to_vec(&bson)?.into())]
             }
             Err(e) => {
                 log::error!("Got error {}", e);
                 return Err(e)?;
             }
-        }
+        };
+
+        Ok(vec)
     }
 
     pub async fn watch(
@@ -297,10 +300,12 @@ impl DB {
         database: &str,
         collection: &str,
         payload: Find,
-        queries: &QueriesFormat
-    ) -> Result<Vec<Value>> {
+        queries: Query<QueriesFormat>
+    ) -> Result<StreamBody<impl Stream<Item = Result<Bytes>>>> {
         if payload.explain.is_some() {
-            return self.find_explain(database, collection, payload).await;
+            let results = self.find_explain(database, collection, payload).await?;
+            let stream = stream::iter(results);
+            return Ok(StreamBody::new(stream))
         }
 
         // Log which collection this is going into
@@ -311,30 +316,28 @@ impl DB {
             .database(database)
             .collection::<Document>(collection);
 
-        let mut cursor = collection.find(payload.filter, payload.options).await?;
+        let cursor = collection.find(payload.filter, payload.options).await?;
 
-        let mut result: Vec<Value> = Vec::new();
-        while let Some(next) = cursor.next().await {
-            match next {
-                Ok(doc) => {
-                    let bson  = match &queries.format {
+        let stream = cursor.into_stream().iter().map(move |d| {
+            match d {
+                Ok(o) => {
+                    let bson  = match queries.clone().format {
                         None | Some(Formats::Json) => {
-                            to_bson(&doc)?.into_relaxed_extjson()
+                            to_bson(&o)?.into_relaxed_extjson()
                         },
                         Some(Formats::Ejson) => {
-                            to_bson(&doc)?.into_canonical_extjson()
+                            to_bson(&o)?.into_canonical_extjson()
                         }
                     };
-                    result.push(bson);
-                }
-                Err(e) => {
-                    log::error!("Caught error, skipping: {}", e);
-                    continue;
-                }
+                    log::debug!("Change stream event: {:?}", bson);
+                    let string = format!("{}\n", bson);
+                    Ok(string.into())
+                },
+                Err(e) => Err(e)?
             }
-        }
-        let result = result.into_iter().rev().collect();
-        Ok(result)
+        });
+
+        Ok(StreamBody::new(stream))
     }
 
     pub async fn find_one(
