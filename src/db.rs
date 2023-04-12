@@ -228,8 +228,9 @@ impl DB {
         // However, I couldn't get the full document to persist
         Ok(StreamBody::new(cursor.map(|d| match d {
             Ok(o) => {
-                log::debug!("Change stream event: {:?}", o);
-                let string = format!("{:?}", o);
+                let doc = to_document(&o)?;
+                log::debug!("Change stream event: {:?}", doc);
+                let string = format!("{}\n", doc);
                 Ok(string.into())
             },
             Err(e) => Err(e)?
