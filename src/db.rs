@@ -3,8 +3,7 @@ use axum::body::Bytes;
 use axum::extract::Query;
 use crate::error::Error as RestError;
 use bson::Bson;
-use futures::stream::{self, StreamExt};
-use futures::TryStreamExt;
+use futures::stream::{StreamExt};
 use mongodb::bson::{doc, document::Document, to_bson, to_document};
 use mongodb::options::{IndexOptions, Collation};
 use mongodb::{options::ClientOptions, options::ListDatabasesOptions, Client};
@@ -13,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use futures::Stream;
 
-use crate::handlers::{Aggregate, Find, FindOne, Index, QueriesFormat, QueriesDelete, Formats, Watch};
+use crate::handlers::{Aggregate, Find, FindOne, Index, QueriesFormat, QueriesDelete, Formats, Watch, ExplainFormat};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Explain {
@@ -136,6 +135,7 @@ impl DB {
         database: &str,
         collection: &str,
         payload: Aggregate,
+        queries: Query<ExplainFormat>
     ) -> Result<Vec<Value>> {
         // Log which collection this is going into
         log::debug!("Explaining aggregate in {}.{}", database, collection);
@@ -148,7 +148,7 @@ impl DB {
 
         let command = Explain {
             explain: to_document(&aggregate_raw)?,
-            verbosity: payload.explain.unwrap(),
+            verbosity: queries.verbosity.as_ref().unwrap_or(&"allPlansExecution".to_string()).clone(),
             comment: "mongodb-rest-rs explain".to_string(),
         };
 
@@ -174,7 +174,8 @@ impl DB {
         database: &str,
         collection: &str,
         payload: Find,
-    ) -> Result<Vec<Result<Bytes>>> {
+        queries: Query<ExplainFormat>
+    ) -> Result<Value> {
         // Log which collection this is accessing
         log::debug!("Explaining search in {}.{}", database, collection);
 
@@ -190,27 +191,25 @@ impl DB {
 
         let command = Explain {
             explain: to_document(&find_raw)?,
-            verbosity: payload.explain.unwrap(),
+            verbosity: queries.verbosity.as_ref().unwrap_or(&"allPlansExecution".to_string()).clone(),
             comment: "mongodb-rest-rs explain".to_string(),
         };
 
         let db = self.client.database(database);
 
-        let vec = match db.run_command(to_document(&command)?, None).await {
+        match db.run_command(to_document(&command)?, None).await {
             Ok(mut c) => {
                 log::debug!("Successfully ran explain in {}.{}", database, collection);
                 c.remove("$clusterTime");
                 c.remove("operationTime");
                 let bson = to_bson(&c)?.into_relaxed_extjson();
-                vec![Ok(bson::to_vec(&bson)?.into())]
-            }
+                Ok(bson)
+            },
             Err(e) => {
                 log::error!("Got error {}", e);
-                return Err(e)?;
+                return Err(e)?
             }
-        };
-
-        Ok(vec)
+        }
     }
 
     pub async fn watch(
@@ -258,41 +257,35 @@ impl DB {
         database: &str,
         collection: &str,
         payload: Aggregate,
-        queries: &QueriesFormat
-    ) -> Result<Vec<Value>> {
-        if payload.explain.is_some() {
-            return self.aggregate_explain(database, collection, payload).await;
-        }
-
+        queries: Query<QueriesFormat>
+    ) -> Result<StreamBody<impl Stream<Item = Result<Bytes>>>> {
         let collection = self
             .client
             .database(&database)
             .collection::<Document>(collection);
 
-        let mut cursor = collection.aggregate(payload.pipeline, payload.options).await?;
+        let cursor = collection.aggregate(payload.pipeline, payload.options).await?;
 
-        let mut result: Vec<Value> = Vec::new();
-        while let Some(doc) = cursor.next().await {
-            match doc {
-                Ok(conv) => {
-                    let bson  = match &queries.format {
+        let stream = cursor.map(move |d| {
+            match d {
+                Ok(o) => {
+                    let bson = match queries.clone().format {
                         None | Some(Formats::Json) => {
-                            to_bson(&conv)?.into_relaxed_extjson()
+                            to_bson(&o)?.into_relaxed_extjson()
                         },
                         Some(Formats::Ejson) => {
-                            to_bson(&conv)?.into_canonical_extjson()
+                            to_bson(&o)?.into_canonical_extjson()
                         }
                     };
-                    result.push(bson);
-                }
-                Err(e) => {
-                    log::error!("Caught error, skipping: {}", e);
-                    continue;
-                }
+                    log::debug!("Change stream event: {:?}", bson);
+                    let string = format!("{}\n", bson);
+                    Ok(string.into())
+                },
+                Err(e) => Err(e)?
             }
-        }
-        let result = result.into_iter().rev().collect();
-        Ok(result)
+        });
+
+        Ok(StreamBody::new(stream))
     }
 
     pub async fn find(
@@ -302,12 +295,6 @@ impl DB {
         payload: Find,
         queries: Query<QueriesFormat>
     ) -> Result<StreamBody<impl Stream<Item = Result<Bytes>>>> {
-        if payload.explain.is_some() {
-            let results = self.find_explain(database, collection, payload).await?;
-            let stream = stream::iter(results);
-            return Ok(StreamBody::new(stream))
-        }
-
         // Log which collection this is going into
         log::debug!("Searching {}.{}", database, collection);
 
@@ -318,10 +305,10 @@ impl DB {
 
         let cursor = collection.find(payload.filter, payload.options).await?;
 
-        let stream = cursor.into_stream().iter().map(move |d| {
+        let stream = cursor.map(move |d| {
             match d {
                 Ok(o) => {
-                    let bson  = match queries.clone().format {
+                    let bson = match queries.clone().format {
                         None | Some(Formats::Json) => {
                             to_bson(&o)?.into_relaxed_extjson()
                         },
@@ -654,7 +641,7 @@ impl DB {
         }
     }
 
-    pub async fn coll_index_stats(&self, database: &str, collection: &str) -> Result<Vec<Value>> {
+    pub async fn coll_index_stats(&self, database: &str, collection: &str) -> Result<StreamBody<impl Stream<Item = Result<Bytes>>>> { 
         log::debug!("Getting index stats");
 
         let mut commands = Vec::new();
@@ -663,13 +650,12 @@ impl DB {
 
         let payload = Aggregate {
             pipeline: commands,
-            options: None,
-            explain: None,
+            options: None
         };
 
         let queries = QueriesFormat::default();
 
-        match self.aggregate(database, collection, payload, &queries).await {
+        match self.aggregate(database, collection, payload, axum::extract::Query(queries)).await {
             Ok(output) => {
                 log::debug!("Successfully got IndexStats");
                 Ok(output)

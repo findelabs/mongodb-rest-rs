@@ -27,12 +27,27 @@ pub enum Formats {
     Ejson
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ExplainVerbosity {
+    verbosity: String
+}
+
 impl Default for Formats {
     fn default() -> Self { Formats::Json }
 }
 
 impl Default for QueriesFormat {
     fn default() -> Self { QueriesFormat {format: Some(Formats::default())  }}
+}
+
+impl Default for ExplainFormat {
+    fn default() -> Self { ExplainFormat {format: Some(Formats::default()), verbosity: Some(String::from("allPlansExecution")) }}
+}
+
+#[derive(Clone, Deserialize)]
+pub struct ExplainFormat {
+    pub format: Option<Formats>,
+    pub verbosity: Option<String>
 }
 
 #[derive(Clone, Deserialize)]
@@ -55,7 +70,6 @@ pub struct FindOne {
 pub struct Find {
     pub filter: Document,
     pub options: Option<FindOptions>,
-    pub explain: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -68,7 +82,6 @@ pub struct Watch {
 pub struct Aggregate {
     pub pipeline: Vec<Document>,
     pub options: Option<AggregateOptions>,
-    pub explain: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -119,9 +132,19 @@ pub async fn aggregate(
     Path((db, coll)): Path<(String, String)>,
     queries: Query<QueriesFormat>,
     Json(payload): Json<Aggregate>,
+) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
+    log::info!("{{\"fn\": \"aggregate\", \"method\":\"post\"}}");
+    state.db.aggregate(&db, &coll, payload, queries).await
+}
+
+pub async fn aggregate_explain(
+    Extension(state): Extension<State>,
+    Path((db, coll)): Path<(String, String)>,
+    queries: Query<ExplainFormat>,
+    Json(payload): Json<Aggregate>,
 ) -> Result<Json<Value>, RestError> {
-    log::info!("{{\"fn\": \"find_one\", \"method\":\"post\"}}");
-    Ok(Json(json!(state.db.aggregate(&db, &coll, payload, &queries).await?)))
+    log::info!("{{\"fn\": \"aggregate_explain\", \"method\":\"post\"}}");
+    Ok(Json(json!(state.db.aggregate_explain(&db, &coll, payload, queries).await?)))
 }
 
 pub async fn index_delete(
@@ -142,13 +165,23 @@ pub async fn index_create(
     Ok(Json(json!(state.db.index_create(&db, &coll, payload).await?)))
 }
 
+pub async fn find_explain(
+    Extension(state): Extension<State>,
+    Path((db, coll)): Path<(String, String)>,
+    queries: Query<ExplainFormat>,
+    Json(payload): Json<Find>,
+) -> Result<Json<Value>, RestError> {
+    log::info!("{{\"fn\": \"find_explain\", \"method\":\"post\"}}");
+    Ok(Json(json!(state.db.find_explain(&db, &coll, payload, queries).await?)))
+}
+
 pub async fn find(
     Extension(state): Extension<State>,
     Path((db, coll)): Path<(String, String)>,
     queries: Query<QueriesFormat>,
     Json(payload): Json<Find>,
 ) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
-    log::info!("{{\"fn\": \"find_one\", \"method\":\"post\"}}");
+    log::info!("{{\"fn\": \"find\", \"method\":\"post\"}}");
     state.db.find(&db, &coll, payload, queries).await
 }
 
@@ -246,9 +279,9 @@ pub async fn coll_indexes(
 pub async fn coll_index_stats(
     Extension(state): Extension<State>,
     Path((db, coll)): Path<(String, String)>,
-) -> Result<Json<Value>, RestError> {
+) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
     log::info!("{{\"fn\": \"coll_indexes\", \"method\":\"get\"}}");
-    Ok(Json(json!(state.db.coll_index_stats(&db, &coll).await?)))
+    state.db.coll_index_stats(&db, &coll).await
 }
 pub async fn health() -> Json<Value> {
     log::info!("{{\"fn\": \"health\", \"method\":\"get\"}}");
