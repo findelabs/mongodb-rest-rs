@@ -65,7 +65,25 @@ GET /:db/:coll/_stats
 POST /:db/:coll/_find_one[?simple]
 {
   "filter": {},
-  "projection": Option<Document>,
+  // Optional fields 
+  "options": {
+    "allow_partial_results": bool,
+    "collation": {},
+    "comment": String,
+    "hint": {},
+    "max": {},
+    "max_scan": u64,
+    "max_time": {},
+    "min": {},
+    "projection": {},
+    "read_concern": String,
+    "return_key": bool,
+    "selection_criteria": String,
+    "show_record_id": bool,
+    "skip": u64,
+    "sort": {},
+    "let_vars": {}
+  }
 }
 
 # Find multiple documents
