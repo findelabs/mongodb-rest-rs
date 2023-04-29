@@ -17,39 +17,44 @@ Options:
   -V, --version              Print version
 ```
 
-### Endpoints
+## API References
+
+### Replicaset
 ```
 # Get replicaset status
-GET /_cat/status
+GET /rs/status
 
 # Get latest logs
-GET /_cat/log
+GET /rs/log
 
 # Get current operations
-GET /_cat/ops
+GET /rs/ops
 
 # Get replicaset stats
-GET /_cat/stats
+GET /rs/stats
 
 # Get databases
-GET /_cat/dbs
+GET /rs/dbs
 
 # Get collection stats
-GET /_cat/top
+GET /rs/top
 
 # Get current connection info
-GET /_cat/conn
+GET /rs/conn
 
 # Get connection pool info
-GET /_cat/pool
+GET /rs/pool
+```
 
+### Database
+``` 
 # Get database stats
 GET /:db/_stats
 
 # Get database collections
-GET /:db/_collections
+GET /:db
 
-# Get collection document counts
+# Get collection document count
 GET /:db/:coll/_count
 
 # Get collection indexes
@@ -61,8 +66,11 @@ GET /:db/:coll/_index_stats
 # Get collection stats
 GET /:db/:coll/_stats
 
+# Get most recent doc
+GET /:db/:coll/_find_one
+
 # Find a document
-POST /:db/:coll/_find_one[?simple]
+POST /:db/:coll/_find_one[?format=json|ejson]
 {
   "filter": {},
   "options": {
@@ -85,8 +93,12 @@ POST /:db/:coll/_find_one[?simple]
   }
 }
 
+# Get ten most recent docs
+GET /:db/:coll
+GET /:db/:coll/_find
+
 # Find multiple documents
-POST /:db/:coll/_find[?simple]
+POST /:db/:coll/_find[?format=json|ejson]
 {
   "filter": {},
   "options": {
