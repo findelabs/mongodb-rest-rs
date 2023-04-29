@@ -65,7 +65,6 @@ GET /:db/:coll/_stats
 POST /:db/:coll/_find_one[?simple]
 {
   "filter": {},
-  // Optional fields 
   "options": {
     "allow_partial_results": bool,
     "collation": {},
@@ -89,12 +88,31 @@ POST /:db/:coll/_find_one[?simple]
 # Find multiple documents
 POST /:db/:coll/_find[?simple]
 {
-  "filter": Document,
-  "projection": Option<Document>,
-  "sort": Option<Document>,
-  "limit": Option<u64>,
-  "skip": Option<u64>,
-  "explain": Option<"queryPlanner | executionStats | allPlansExecution">
+  "filter": {},
+  "options": {
+    "allow_disk_use": bool,
+    "allow_partial_results": bool,
+    "batch_size": u32,
+    "comment": String,
+    "cursor_type": String,
+    "hint": {},
+    "limit": i64,
+    "max": {},
+    "max_await_time": {},
+    "max_scan": u64,
+    "max_time": {},
+    "min": {},
+    "no_cursor_timeout": bool,
+    "projection": {},
+    "read_concern": String,
+    "return_key": bool,
+    "selection_criteria": String,
+    "show_record_id": bool,
+    "skip": u64,
+    "sort": {},
+    "collation": {},
+    "let_vars": {}
+  }
 }
 
 # Aggregation
