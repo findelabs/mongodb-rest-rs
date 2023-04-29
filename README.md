@@ -131,8 +131,7 @@ POST /:db/:coll/_find[?format=json|ejson]
 POST /:db/:coll/_aggregate[?simple] 
 {
   "pipeline": [Document],
-  "options": Option<Document>,
-  "explain": Option<"queryPlanner | executionStats | allPlansExecution">
+  "options": Option<Document>
 }
 
 # Create index
@@ -140,26 +139,32 @@ POST /:db/:coll/_index
 {
   "keys": {}
   "options": {
-    unique: Option<bool>,
-    name: Option<String>,
-    partial_filter_expression: Option<Document>,
-    sparse: Option<bool>,
-    expire_after: Option<Duration>,
-    hidden: Option<bool>,
-    collation: Option<Collation>,
-    weights: Option<Document>,
-    default_language: Option<String>,
-    language_override: Option<String>,
-    text_index_version: Option<TextIndexVersion>
+    "background": bool,
+    "expire_after": Duration,
+    "name": String,
+    "sparse": bool,
+    "storage_engine": {},
+    "unique": bool,
+    "version": u32,
+    "default_language": String,
+    "language_override": String,
+    "text_index_version": u32,
+    "weights": {},
+    "sphere_2d_index_version": u32,
+    "bits": u32,
+    "max": f64,
+    "min": f64,
+    "bucket_size": u32,
+    "partial_filter_expression": {},
+    "collation": {},
+    "wildcard_projection": {},
+    "hidden": bool
   }
 }
 ```
 
 ### Future
 ``` 
-# Find query, show simple results
-GET /:id/:coll/_find?simple
-
 # Delete index
 DELETE /:db/:coll/_index?name=<index name>
 
