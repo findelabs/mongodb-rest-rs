@@ -46,7 +46,7 @@ GET /rs/conn
 GET /rs/pool
 ```
 
-### Database
+### Collection Info and Search
 ``` 
 # Get database stats
 GET /:db/_stats
@@ -112,7 +112,7 @@ POST /:db/:coll/_find[?format=json|ejson]
     "max": {},
     "max_await_time": {},
     "max_scan": u64,
-    "max_time": {},
+    "max_time": u32,
     "min": {},
     "no_cursor_timeout": bool,
     "projection": {},
@@ -128,10 +128,22 @@ POST /:db/:coll/_find[?format=json|ejson]
 }
 
 # Aggregation
-POST /:db/:coll/_aggregate[?simple] 
+POST /:db/:coll/_aggregate[?format=json|ejson] 
 {
-  "pipeline": [Document],
-  "options": Option<Document>
+  "pipeline": [{}],
+  "options": {
+    "allow_disk_use": bool,
+    "batch_size": u32,
+    "bypass_document_validation": bool,
+    "collation": {},
+    "comment": String,
+    "hint": {},
+    "max_await_time": u32,
+    "max_time": u32,
+    "read_concern": String,
+    "selection_criteria": String,
+    "write_concern": String,
+    "let_vars": {}
 }
 
 # Create index
@@ -140,7 +152,7 @@ POST /:db/:coll/_index
   "keys": {}
   "options": {
     "background": bool,
-    "expire_after": Duration,
+    "expire_after": u32,
     "name": String,
     "sparse": bool,
     "storage_engine": {},
