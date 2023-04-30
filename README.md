@@ -145,7 +145,10 @@ POST /:db/:coll/_aggregate[?format=json|ejson]
     "write_concern": String,
     "let_vars": {}
 }
+```
 
+### Collection CRUD Operations
+```
 # Create index
 POST /:db/:coll/_index 
 {
@@ -173,6 +176,11 @@ POST /:db/:coll/_index
     "hidden": bool
   }
 }
+
+# Insert one doc
+POST /:db/:coll/_insert[?bypass_document_validation=bool, ?write_concern=]
+{}
+
 ```
 
 ### Future
