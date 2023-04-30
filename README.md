@@ -185,6 +185,9 @@ POST /:db/:coll/_index
   }
 }
 
+# Delete index
+DELETE /:db/:coll/_index?name=<index name>
+
 # Insert one doc
 POST /:db/:coll/_insert[bypass_document_validation=bool, w=string, n=u32, w_timeout=u32, journal=bool, comment=string]
 {}
@@ -222,9 +225,6 @@ POST /:db/:coll/_delete_many
 
 ### Future
 ``` 
-# Delete index
-DELETE /:db/:coll/_index?name=<index name>
-
 # Update/UpdateOne
 POST /:db/:coll/_update
 {
@@ -240,6 +240,4 @@ POST /:db/:coll/_replace_one
   "replacement": {},
   "upsert": bool
 }
-
-
 ```
