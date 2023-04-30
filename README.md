@@ -178,8 +178,12 @@ POST /:db/:coll/_index
 }
 
 # Insert one doc
-POST /:db/:coll/_insert[?bypass_document_validation=bool, ?write_concern=]
+POST /:db/:coll/_insert[bypass_document_validation=bool, w=string, n=u32, w_timeout=u32, journal=bool, comment=string]
 {}
+
+# Insert one doc
+POST /:db/:coll/_insert[bypass_document_validation=bool, ordered=bool, w=string, n=u32, w_timeout=u32, journal=bool, comment=string]
+[{}]
 
 ```
 
@@ -187,10 +191,6 @@ POST /:db/:coll/_insert[?bypass_document_validation=bool, ?write_concern=]
 ``` 
 # Delete index
 DELETE /:db/:coll/_index?name=<index name>
-
-# Insert
-POST /:db/:coll/_insert
-{}
 
 # Update/UpdateOne
 POST /:db/:coll/_update
