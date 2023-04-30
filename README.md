@@ -145,6 +145,14 @@ POST /:db/:coll/_aggregate[?format=json|ejson]
     "write_concern": String,
     "let_vars": {}
 }
+
+# Distinct
+POST /:db/:coll/_distinct
+{
+  "field_name": String,
+  "filter": {},
+  "options": {}
+}
 ```
 
 ### Collection CRUD Operations
@@ -185,6 +193,31 @@ POST /:db/:coll/_insert[bypass_document_validation=bool, w=string, n=u32, w_time
 POST /:db/:coll/_insert[bypass_document_validation=bool, ordered=bool, w=string, n=u32, w_timeout=u32, journal=bool, comment=string]
 [{}]
 
+# Delete one document
+POST /:db/:coll/_delete_one
+{
+  "filter": {},
+  "options": {
+    "collation": {},
+    "write_concern": {},
+    "hint": {},
+    "let_vars": {},
+    "comment:" String
+  }
+}
+
+# Delete many documents
+POST /:db/:coll/_delete_many
+{
+  "filter": {},
+  "options": {
+    "collation": {},
+    "write_concern": {},
+    "hint": {},
+    "let_vars": {},
+    "comment:" String
+  }
+}
 ```
 
 ### Future
@@ -208,17 +241,5 @@ POST /:db/:coll/_replace_one
   "upsert": bool
 }
 
-# Distinct
-POST /:db/:coll/_distinct
-{
-  "field_name": String,
-  "filter": {},
-  "options": DistinctOptions
-}
 
-# DeleteOne/Delete
-POST /:db/:coll/_delete
-{
-  "filter": {}
-}
 ```
