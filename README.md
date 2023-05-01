@@ -227,7 +227,16 @@ POST /:db/:coll/_update_one
 {
   "filter": {},
   "update": {},
-  "options": {}
+  "options": {
+    "array_filters": [{}],
+    "bypass_document_validation": bool,
+    "upsert": bool,
+    "collation": {},
+    "hint": String,
+    "write_concern": String,
+    "let_vars": {},
+    "comment": String
+  }
 }
 
 # Update many documents
@@ -235,8 +244,16 @@ POST /:db/:coll/_update
 {
   "filter": {},
   "update": {},
-  "options": {}
- }
+  "options": {
+    "array_filters": [{}],
+    "bypass_document_validation": bool,
+    "upsert": bool,
+    "collation": {},
+    "hint": String,
+    "write_concern": String,
+    "let_vars": {},
+    "comment": String
+  }
 ```
 
 ### Future
