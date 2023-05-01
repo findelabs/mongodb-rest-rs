@@ -30,7 +30,7 @@ impl State {
             None => ClientOptions::parse(&args.uri).await?,
         };
 
-        let db = DB::init(client).await?;
+        let db = DB::init(client, args.readonly).await?;
 
         Ok(State { db })
     }

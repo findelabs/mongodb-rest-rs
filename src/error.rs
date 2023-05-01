@@ -10,7 +10,7 @@ use std::fmt;
 pub enum Error {
     //    Forbidden,
     //    Unauthorized,
-    //    NotFound,
+    ReadOnly,
     Mongo(mongodb::error::Error),
     Bson(bson::document::ValueAccessError),
     DeError(bson::de::Error),
@@ -22,13 +22,27 @@ impl std::error::Error for Error {}
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            //            Error::Forbidden => f.write_str("{\"error\": \"Cannot get config: Forbidden\"}"),
-            //            Error::Unauthorized => f.write_str("{\"error\": \"Cannot get config: Unauthorized\"}"),
-            //            Error::NotFound => f.write_str("{\"error\": \"Cannot get config: Not found\"}"),
-            Error::Mongo(ref err) => write!(f, "{{\"error\": \"{}\"}}", err),
-            Error::Bson(ref err) => write!(f, "{{\"error\": \"{}\"}}", err),
-            Error::DeError(ref err) => write!(f, "{{\"error\": \"{}\"}}", err),
-            Error::SerError(ref err) => write!(f, "{{\"error\": \"{}\"}}", err),
+            Error::ReadOnly => f.write_str("{\"error\": \"Readonly cluster\"}"),
+            Error::Mongo(ref err) => write!(
+                f,
+                "{{\"error\": \"{}\"}}",
+                err.to_string().replace('"', "\\\"")
+            ),
+            Error::Bson(ref err) => write!(
+                f,
+                "{{\"error\": \"{}\"}}",
+                err.to_string().replace('"', "\\\"")
+            ),
+            Error::DeError(ref err) => write!(
+                f,
+                "{{\"error\": \"{}\"}}",
+                err.to_string().replace('"', "\\\"")
+            ),
+            Error::SerError(ref err) => write!(
+                f,
+                "{{\"error\": \"{}\"}}",
+                err.to_string().replace('"', "\\\"")
+            ),
         }
     }
 }
@@ -38,10 +52,12 @@ impl IntoResponse for Error {
         let payload = self.to_string();
         let body = body::boxed(body::Full::from(payload));
 
-        Response::builder()
-            .status(StatusCode::INTERNAL_SERVER_ERROR)
-            .body(body)
-            .unwrap()
+        let status_code = match self {
+            Error::ReadOnly => StatusCode::FORBIDDEN,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        };
+
+        Response::builder().status(status_code).body(body).unwrap()
     }
 }
 

@@ -1,18 +1,24 @@
-use axum::body::StreamBody;
-use axum::body::Bytes;
-use axum::extract::Query;
 use crate::error::Error as RestError;
+use axum::body::Bytes;
+use axum::body::StreamBody;
+use axum::extract::Query;
 use bson::Bson;
-use futures::stream::{StreamExt};
+use futures::stream::StreamExt;
+use futures::Stream;
 use mongodb::bson::{doc, document::Document, to_bson, to_document};
-use mongodb::options::{IndexOptions, Collation};
-use mongodb::{options::ClientOptions, options::ListDatabasesOptions, Client};
+use mongodb::options::{Collation, IndexOptions};
 use mongodb::IndexModel;
+use mongodb::{
+    options::ClientOptions, options::InsertManyOptions, options::InsertOneOptions,
+    options::ListDatabasesOptions, Client,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use futures::Stream;
 
-use crate::handlers::{Aggregate, Find, FindOne, Index, QueriesFormat, QueriesDelete, Formats, Watch, ExplainFormat};
+use crate::handlers::{
+    Aggregate, CustomInsertManyOptions, CustomInsertOneOptions, DeleteOne, Distinct, ExplainFormat,
+    Find, FindOne, Formats, Index, QueriesDelete, QueriesFormat, UpdateOne, Watch,
+};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Explain {
@@ -47,16 +53,18 @@ pub struct FindRaw {
 #[derive(Clone, Debug)]
 pub struct DB {
     pub client: Client,
+    pub readonly: bool,
 }
 
 type Result<T> = std::result::Result<T, RestError>;
 
 impl DB {
-    pub async fn init(mut client_options: ClientOptions) -> Result<Self> {
+    pub async fn init(mut client_options: ClientOptions, readonly: bool) -> Result<Self> {
         client_options.app_name = Some("mongodb-rest-rs".to_string());
 
         Ok(Self {
             client: Client::with_options(client_options)?,
+            readonly,
         })
     }
 
@@ -66,7 +74,12 @@ impl DB {
         collection: &str,
         queries: &QueriesDelete,
     ) -> Result<Value> {
-        log::debug!("Deleting index {} on {}.{}", queries.name, database, collection);
+        log::debug!(
+            "Deleting index {} on {}.{}",
+            queries.name,
+            database,
+            collection
+        );
 
         let collection = self
             .client
@@ -77,7 +90,7 @@ impl DB {
             Ok(_) => {
                 log::debug!("Deleted index");
                 Ok(json!({"message":"deleted index", "name": queries.name}))
-            },
+            }
             Err(e) => {
                 log::error!("Error deleting index: {}", e);
                 return Err(e)?;
@@ -108,7 +121,7 @@ impl DB {
             index_options.text_index_version = options.text_index_version;
         }
 
-        let index_model = IndexModel::builder() 
+        let index_model = IndexModel::builder()
             .keys(payload.keys)
             .options(Some(index_options))
             .build();
@@ -122,7 +135,7 @@ impl DB {
             Ok(doc) => {
                 log::debug!("Created index");
                 Ok(json!({"message":"Created index", "name": doc.index_name}))
-            },
+            }
             Err(e) => {
                 log::error!("Error creating index: {}", e);
                 return Err(e)?;
@@ -135,7 +148,7 @@ impl DB {
         database: &str,
         collection: &str,
         payload: Aggregate,
-        queries: Query<ExplainFormat>
+        queries: Query<ExplainFormat>,
     ) -> Result<Vec<Value>> {
         // Log which collection this is going into
         log::debug!("Explaining aggregate in {}.{}", database, collection);
@@ -148,7 +161,11 @@ impl DB {
 
         let command = Explain {
             explain: to_document(&aggregate_raw)?,
-            verbosity: queries.verbosity.as_ref().unwrap_or(&"allPlansExecution".to_string()).clone(),
+            verbosity: queries
+                .verbosity
+                .as_ref()
+                .unwrap_or(&"allPlansExecution".to_string())
+                .clone(),
             comment: "mongodb-rest-rs explain".to_string(),
         };
 
@@ -174,7 +191,7 @@ impl DB {
         database: &str,
         collection: &str,
         payload: Find,
-        queries: Query<ExplainFormat>
+        queries: Query<ExplainFormat>,
     ) -> Result<Value> {
         // Log which collection this is accessing
         log::debug!("Explaining search in {}.{}", database, collection);
@@ -183,15 +200,25 @@ impl DB {
             find: collection.to_string(),
             filter: payload.filter.clone(),
             sort: payload.options.clone().map_or(None, |x| x.sort.clone()),
-            projection: payload.options.clone().map_or(None, |x| x.projection.clone()),
+            projection: payload
+                .options
+                .clone()
+                .map_or(None, |x| x.projection.clone()),
             limit: payload.options.clone().map_or(None, |x| x.limit.clone()),
             skip: payload.options.clone().map_or(None, |x| x.skip.clone()),
-            collation: payload.options.clone().map_or(None, |x| x.collation.clone())
+            collation: payload
+                .options
+                .clone()
+                .map_or(None, |x| x.collation.clone()),
         };
 
         let command = Explain {
             explain: to_document(&find_raw)?,
-            verbosity: queries.verbosity.as_ref().unwrap_or(&"allPlansExecution".to_string()).clone(),
+            verbosity: queries
+                .verbosity
+                .as_ref()
+                .unwrap_or(&"allPlansExecution".to_string())
+                .clone(),
             comment: "mongodb-rest-rs explain".to_string(),
         };
 
@@ -204,10 +231,10 @@ impl DB {
                 c.remove("operationTime");
                 let bson = to_bson(&c)?.into_relaxed_extjson();
                 Ok(bson)
-            },
+            }
             Err(e) => {
                 log::error!("Got error {}", e);
-                return Err(e)?
+                return Err(e)?;
             }
         }
     }
@@ -217,7 +244,7 @@ impl DB {
         database: &str,
         collection: &str,
         payload: Watch,
-        queries: Query<QueriesFormat>
+        queries: Query<QueriesFormat>,
     ) -> Result<StreamBody<impl Stream<Item = Result<Bytes>>>> {
         let collection = self
             .client
@@ -231,24 +258,17 @@ impl DB {
         // However, get'ing a single field from the ChangeStream doc would work, only if the var was to_owned()
         // However, I couldn't get the full document to persist
 
-
-        Ok(StreamBody::new(cursor.map(move |d| {
-            match d {
-                Ok(o) => {
-                    let bson  = match queries.clone().format {
-                        None | Some(Formats::Json) => {
-                            to_bson(&o)?.into_relaxed_extjson()
-                        },
-                        Some(Formats::Ejson) => {
-                            to_bson(&o)?.into_canonical_extjson()
-                        }
-                    };
-                    log::debug!("Change stream event: {:?}", bson);
-                    let string = format!("{}\n", bson);
-                    Ok(string.into())
-                },
-                Err(e) => Err(e)?
+        Ok(StreamBody::new(cursor.map(move |d| match d {
+            Ok(o) => {
+                let bson = match queries.clone().format {
+                    None | Some(Formats::Json) => to_bson(&o)?.into_relaxed_extjson(),
+                    Some(Formats::Ejson) => to_bson(&o)?.into_canonical_extjson(),
+                };
+                log::debug!("Change stream event: {:?}", bson);
+                let string = format!("{}\n", bson);
+                Ok(string.into())
             }
+            Err(e) => Err(e)?,
         })))
     }
 
@@ -257,32 +277,28 @@ impl DB {
         database: &str,
         collection: &str,
         payload: Aggregate,
-        queries: Query<QueriesFormat>
+        queries: Query<QueriesFormat>,
     ) -> Result<StreamBody<impl Stream<Item = Result<Bytes>>>> {
         let collection = self
             .client
             .database(&database)
             .collection::<Document>(collection);
 
-        let cursor = collection.aggregate(payload.pipeline, payload.options).await?;
+        let cursor = collection
+            .aggregate(payload.pipeline, payload.options)
+            .await?;
 
-        let stream = cursor.map(move |d| {
-            match d {
-                Ok(o) => {
-                    let bson = match queries.clone().format {
-                        None | Some(Formats::Json) => {
-                            to_bson(&o)?.into_relaxed_extjson()
-                        },
-                        Some(Formats::Ejson) => {
-                            to_bson(&o)?.into_canonical_extjson()
-                        }
-                    };
-                    log::debug!("Change stream event: {:?}", bson);
-                    let string = format!("{}\n", bson);
-                    Ok(string.into())
-                },
-                Err(e) => Err(e)?
+        let stream = cursor.map(move |d| match d {
+            Ok(o) => {
+                let bson = match queries.clone().format {
+                    None | Some(Formats::Json) => to_bson(&o)?.into_relaxed_extjson(),
+                    Some(Formats::Ejson) => to_bson(&o)?.into_canonical_extjson(),
+                };
+                log::debug!("Change stream event: {:?}", bson);
+                let string = format!("{}\n", bson);
+                Ok(string.into())
             }
+            Err(e) => Err(e)?,
         });
 
         Ok(StreamBody::new(stream))
@@ -293,7 +309,7 @@ impl DB {
         database: &str,
         collection: &str,
         payload: Find,
-        queries: Query<QueriesFormat>
+        queries: Query<QueriesFormat>,
     ) -> Result<StreamBody<impl Stream<Item = Result<Bytes>>>> {
         // Log which collection this is going into
         log::debug!("Searching {}.{}", database, collection);
@@ -305,34 +321,259 @@ impl DB {
 
         let cursor = collection.find(payload.filter, payload.options).await?;
 
-        let stream = cursor.map(move |d| {
-            match d {
-                Ok(o) => {
-                    let bson = match queries.clone().format {
-                        None | Some(Formats::Json) => {
-                            to_bson(&o)?.into_relaxed_extjson()
-                        },
-                        Some(Formats::Ejson) => {
-                            to_bson(&o)?.into_canonical_extjson()
-                        }
-                    };
-                    log::debug!("Change stream event: {:?}", bson);
-                    let string = format!("{}\n", bson);
-                    Ok(string.into())
-                },
-                Err(e) => Err(e)?
+        let stream = cursor.map(move |d| match d {
+            Ok(o) => {
+                let bson = match queries.clone().format {
+                    None | Some(Formats::Json) => to_bson(&o)?.into_relaxed_extjson(),
+                    Some(Formats::Ejson) => to_bson(&o)?.into_canonical_extjson(),
+                };
+                log::debug!("Change stream event: {:?}", bson);
+                let string = format!("{}\n", bson);
+                Ok(string.into())
             }
+            Err(e) => Err(e)?,
         });
 
         Ok(StreamBody::new(stream))
     }
 
+    pub async fn insert_many(
+        &self,
+        database: &str,
+        collection: &str,
+        body: Vec<Bson>,
+        queries: Query<CustomInsertManyOptions>,
+    ) -> Result<Value> {
+        if self.readonly {
+            return Err(RestError::ReadOnly);
+        }
+
+        log::debug!("Inserting many to {}.{}", database, collection);
+
+        let collection = self
+            .client
+            .database(database)
+            .collection::<Bson>(collection);
+
+        let options: InsertManyOptions = queries.0.into();
+
+        match collection.insert_many(body, options).await {
+            Ok(id) => {
+                log::debug!("Successfully inserted doc");
+                let response = json!({"Inserted": id.inserted_ids});
+                Ok(response)
+            }
+            Err(e) => {
+                log::error!("Error inserting into mongo: {}", e);
+                return Err(e)?;
+            }
+        }
+    }
+
+    pub async fn insert_one(
+        &self,
+        database: &str,
+        collection: &str,
+        body: Bson,
+        queries: Query<CustomInsertOneOptions>,
+    ) -> Result<Value> {
+        if self.readonly {
+            return Err(RestError::ReadOnly);
+        }
+
+        log::debug!("Inserting into {}.{}", database, collection);
+
+        let collection = self
+            .client
+            .database(database)
+            .collection::<Bson>(collection);
+
+        let options: InsertOneOptions = queries.0.into();
+
+        match collection.insert_one(body, options).await {
+            Ok(id) => {
+                log::debug!("Successfully inserted doc");
+                let response = json!({"Inserted": id.inserted_id});
+                Ok(response)
+            }
+            Err(e) => {
+                log::error!("Error inserting into mongo: {}", e);
+                return Err(e)?;
+            }
+        }
+    }
+
+    pub async fn delete_many(
+        &self,
+        database: &str,
+        collection: &str,
+        payload: DeleteOne,
+    ) -> Result<Value> {
+        if self.readonly {
+            return Err(RestError::ReadOnly);
+        }
+
+        log::debug!("Deleting many from {}.{}", database, collection);
+
+        let collection = self
+            .client
+            .database(database)
+            .collection::<Document>(collection);
+
+        match collection
+            .delete_many(payload.filter, payload.options)
+            .await
+        {
+            Ok(result) => {
+                log::debug!("Successfully deleted docs");
+                let response = json!({"Deleted": result.deleted_count});
+                Ok(response)
+            }
+            Err(e) => {
+                log::error!("Error deleting from mongo: {}", e);
+                return Err(e)?;
+            }
+        }
+    }
+
+    pub async fn delete_one(
+        &self,
+        database: &str,
+        collection: &str,
+        payload: DeleteOne,
+    ) -> Result<Value> {
+        if self.readonly {
+            return Err(RestError::ReadOnly);
+        }
+
+        log::debug!("Deleting one from {}.{}", database, collection);
+
+        let collection = self
+            .client
+            .database(database)
+            .collection::<Document>(collection);
+
+        match collection.delete_one(payload.filter, payload.options).await {
+            Ok(result) => {
+                log::debug!("Successfully deleted doc");
+                let response = json!({"Deleted": result.deleted_count});
+                Ok(response)
+            }
+            Err(e) => {
+                log::error!("Error deleting from mongo: {}", e);
+                return Err(e)?;
+            }
+        }
+    }
+
+    pub async fn update_one(
+        &self,
+        database: &str,
+        collection: &str,
+        payload: UpdateOne,
+    ) -> Result<Value> {
+        if self.readonly {
+            return Err(RestError::ReadOnly);
+        }
+
+        log::debug!("Updating one from {}.{}", database, collection);
+
+        let collection = self
+            .client
+            .database(database)
+            .collection::<Document>(collection);
+
+        match collection
+            .update_one(payload.filter, payload.update, payload.options)
+            .await
+        {
+            Ok(result) => {
+                log::debug!("Successfully updated doc");
+                let response = json!(result);
+                Ok(response)
+            }
+            Err(e) => {
+                log::error!("Error updating in mongo: {}", e);
+                return Err(e)?;
+            }
+        }
+    }
+
+    pub async fn update_many(
+        &self,
+        database: &str,
+        collection: &str,
+        payload: UpdateOne,
+    ) -> Result<Value> {
+        if self.readonly {
+            return Err(RestError::ReadOnly);
+        }
+
+        log::debug!("Updating many from {}.{}", database, collection);
+
+        let collection = self
+            .client
+            .database(database)
+            .collection::<Document>(collection);
+
+        match collection
+            .update_many(payload.filter, payload.update, payload.options)
+            .await
+        {
+            Ok(result) => {
+                log::debug!("Successfully updated docs");
+                let response = json!(result);
+                Ok(response)
+            }
+            Err(e) => {
+                log::error!("Error updating in mongo: {}", e);
+                return Err(e)?;
+            }
+        }
+    }
+
+    pub async fn distinct(
+        &self,
+        database: &str,
+        collection: &str,
+        payload: Distinct,
+        queries: &QueriesFormat,
+    ) -> Result<Value> {
+        log::debug!(
+            "Searching for distinct values in {}.{}",
+            database,
+            collection
+        );
+
+        let collection = self
+            .client
+            .database(database)
+            .collection::<Document>(collection);
+
+        match collection
+            .distinct(payload.field_name, payload.filter, payload.options)
+            .await
+        {
+            Ok(doc) => {
+                log::debug!("Found a result");
+                let bson = match &queries.format {
+                    None | Some(Formats::Json) => to_bson(&doc)?.into_relaxed_extjson(),
+                    Some(Formats::Ejson) => to_bson(&doc)?.into_canonical_extjson(),
+                };
+                Ok(bson)
+            }
+            Err(e) => {
+                log::error!("Error searching mongodb: {}", e);
+                return Err(e)?;
+            }
+        }
+    }
     pub async fn find_one(
         &self,
         database: &str,
         collection: &str,
         payload: FindOne,
-        queries: &QueriesFormat
+        queries: &QueriesFormat,
     ) -> Result<Value> {
         log::debug!("Searching {}.{}", database, collection);
 
@@ -345,13 +586,9 @@ impl DB {
             Ok(result) => match result {
                 Some(doc) => {
                     log::debug!("Found a result");
-                    let bson  = match &queries.format {
-                        None | Some(Formats::Json) => {
-                            to_bson(&doc)?.into_relaxed_extjson()
-                        },
-                        Some(Formats::Ejson) => {
-                            to_bson(&doc)?.into_canonical_extjson()
-                        }
+                    let bson = match &queries.format {
+                        None | Some(Formats::Json) => to_bson(&doc)?.into_relaxed_extjson(),
+                        Some(Formats::Ejson) => to_bson(&doc)?.into_canonical_extjson(),
                     };
                     Ok(bson)
                 }
@@ -405,7 +642,12 @@ impl DB {
         }
     }
 
-    pub async fn coll_indexes(&self, database: &str, collection: &str, queries: &QueriesFormat) -> Result<Value> {
+    pub async fn coll_indexes(
+        &self,
+        database: &str,
+        collection: &str,
+        queries: &QueriesFormat,
+    ) -> Result<Value> {
         log::debug!("Getting indexes in {}", database);
 
         let collection = self
@@ -419,13 +661,9 @@ impl DB {
         while let Some(next) = cursor.next().await {
             match next {
                 Ok(doc) => {
-                    let bson  = match &queries.format {
-                        None | Some(Formats::Json) => {
-                            to_bson(&doc)?.into_relaxed_extjson()
-                        },
-                        Some(Formats::Ejson) => {
-                            to_bson(&doc)?.into_canonical_extjson()
-                        }
+                    let bson = match &queries.format {
+                        None | Some(Formats::Json) => to_bson(&doc)?.into_relaxed_extjson(),
+                        Some(Formats::Ejson) => to_bson(&doc)?.into_canonical_extjson(),
                     };
                     result.push(bson);
                 }
@@ -641,7 +879,11 @@ impl DB {
         }
     }
 
-    pub async fn coll_index_stats(&self, database: &str, collection: &str) -> Result<StreamBody<impl Stream<Item = Result<Bytes>>>> { 
+    pub async fn coll_index_stats(
+        &self,
+        database: &str,
+        collection: &str,
+    ) -> Result<StreamBody<impl Stream<Item = Result<Bytes>>>> {
         log::debug!("Getting index stats");
 
         let mut commands = Vec::new();
@@ -650,12 +892,15 @@ impl DB {
 
         let payload = Aggregate {
             pipeline: commands,
-            options: None
+            options: None,
         };
 
         let queries = QueriesFormat::default();
 
-        match self.aggregate(database, collection, payload, axum::extract::Query(queries)).await {
+        match self
+            .aggregate(database, collection, payload, axum::extract::Query(queries))
+            .await
+        {
             Ok(output) => {
                 log::debug!("Successfully got IndexStats");
                 Ok(output)

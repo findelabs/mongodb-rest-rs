@@ -36,3 +36,4 @@ futures = { version = "0.3.4", default-features = false, features = ["async-awai
 futures-util = "0.3"
 bson = "2"
 rust_tools = { git = "https://github.com/findelabs/rust-tools.git", branch = "master" }
+axum-macros = "0.3"

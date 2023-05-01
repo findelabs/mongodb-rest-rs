@@ -1,20 +1,26 @@
 use axum::{
-    extract::{OriginalUri, Path, Query},
     body::Bytes,
     body::StreamBody,
+    extract::{OriginalUri, Path, Query},
     http::StatusCode,
     response::IntoResponse,
     Extension, Json,
 };
+use bson::Document;
+use bson::{doc, Bson};
+use clap::{crate_description, crate_name, crate_version};
 use core::time::Duration;
 use futures::Stream;
-use mongodb::options::{CollationCaseFirst, CollationStrength, CollationAlternate, CollationMaxVariable, Collation, TextIndexVersion, AggregateOptions, FindOptions, FindOneOptions, ChangeStreamOptions};
-//use mongodb::change_stream::event::ChangeStreamEvent;
-use bson::Document;
-use clap::{crate_description, crate_name, crate_version};
+use mongodb::options::{
+    Acknowledgment, AggregateOptions, ChangeStreamOptions, Collation, CollationAlternate,
+    CollationCaseFirst, CollationMaxVariable, CollationStrength, DeleteOptions, DistinctOptions,
+    FindOneOptions, FindOptions, InsertManyOptions, InsertOneOptions, TextIndexVersion,
+    UpdateModifications, UpdateOptions, WriteConcern,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::Value;
+//use axum_macros::debug_handler;
 
 use crate::error::Error as RestError;
 use crate::State;
@@ -24,40 +30,71 @@ pub enum Formats {
     #[serde(rename = "json")]
     Json,
     #[serde(rename = "ejson")]
-    Ejson
+    Ejson,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ExplainVerbosity {
-    verbosity: String
+    verbosity: String,
 }
 
 impl Default for Formats {
-    fn default() -> Self { Formats::Json }
+    fn default() -> Self {
+        Formats::Json
+    }
 }
 
 impl Default for QueriesFormat {
-    fn default() -> Self { QueriesFormat {format: Some(Formats::default())  }}
+    fn default() -> Self {
+        QueriesFormat {
+            format: Some(Formats::default()),
+        }
+    }
 }
 
 impl Default for ExplainFormat {
-    fn default() -> Self { ExplainFormat {format: Some(Formats::default()), verbosity: Some(String::from("allPlansExecution")) }}
+    fn default() -> Self {
+        ExplainFormat {
+            format: Some(Formats::default()),
+            verbosity: Some(String::from("allPlansExecution")),
+        }
+    }
 }
 
 #[derive(Clone, Deserialize)]
 pub struct ExplainFormat {
     pub format: Option<Formats>,
-    pub verbosity: Option<String>
+    pub verbosity: Option<String>,
 }
 
 #[derive(Clone, Deserialize)]
 pub struct QueriesFormat {
-    pub format: Option<Formats>
+    pub format: Option<Formats>,
 }
 
 #[derive(Deserialize)]
 pub struct QueriesDelete {
     pub name: String,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct DeleteOne {
+    pub filter: Document,
+    pub options: Option<DeleteOptions>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct UpdateOne {
+    pub filter: Document,
+    pub update: UpdateModifications,
+    pub options: Option<UpdateOptions>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct Distinct {
+    pub field_name: String,
+    pub filter: Option<Document>,
+    pub options: Option<DistinctOptions>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -75,7 +112,7 @@ pub struct Find {
 #[derive(Deserialize, Debug, Clone)]
 pub struct Watch {
     pub pipeline: Vec<Document>,
-    pub options: Option<ChangeStreamOptions>
+    pub options: Option<ChangeStreamOptions>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -88,6 +125,78 @@ pub struct Aggregate {
 pub struct Index {
     pub keys: Document,
     pub options: Option<IndexCreateOptions>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct CustomInsertManyOptions {
+    pub bypass_document_validation: Option<bool>,
+    pub ordered: Option<bool>,
+    pub w: Option<Acknowledgment>,
+    pub n: Option<u32>,
+    pub w_timeout: Option<Duration>,
+    pub journal: Option<bool>,
+    pub comment: Option<Bson>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct CustomInsertOneOptions {
+    pub bypass_document_validation: Option<bool>,
+    pub w: Option<Acknowledgment>,
+    pub n: Option<u32>,
+    pub w_timeout: Option<Duration>,
+    pub journal: Option<bool>,
+    pub comment: Option<Bson>,
+}
+
+impl From<CustomInsertManyOptions> for InsertManyOptions {
+    fn from(item: CustomInsertManyOptions) -> Self {
+        let w_concern = if let Some(w) = item.w {
+            Some(w.into())
+        } else if let Some(n) = item.n {
+            Some(n.into())
+        } else {
+            None
+        };
+
+        let write_concern = WriteConcern::builder()
+            .w(w_concern)
+            .w_timeout(item.w_timeout)
+            .journal(item.journal)
+            .build();
+
+        InsertManyOptions::builder()
+            .bypass_document_validation(item.bypass_document_validation)
+            .ordered(item.ordered)
+            .write_concern(write_concern)
+            .comment(item.comment)
+            .build()
+    }
+}
+
+impl From<CustomInsertOneOptions> for InsertOneOptions {
+    fn from(item: CustomInsertOneOptions) -> Self {
+        let w_concern = if let Some(w) = item.w {
+            Some(w.into())
+        } else if let Some(n) = item.n {
+            Some(n.into())
+        } else {
+            None
+        };
+
+        let write_concern = WriteConcern::builder()
+            .w(w_concern)
+            .w_timeout(item.w_timeout)
+            .journal(item.journal)
+            .build();
+
+        InsertOneOptions::builder()
+            .bypass_document_validation(item.bypass_document_validation)
+            .write_concern(write_concern)
+            .comment(item.comment)
+            .build()
+    }
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -106,7 +215,7 @@ pub struct IndexCreateOptions {
 }
 
 #[derive(Deserialize, Debug, Clone)]
-pub struct IndexCollation{
+pub struct IndexCollation {
     pub locale: Option<String>,
     pub case_level: Option<bool>,
     pub case_first: Option<CollationCaseFirst>,
@@ -114,7 +223,7 @@ pub struct IndexCollation{
     pub numeric_ordering: Option<bool>,
     pub alternate: Option<CollationAlternate>,
     pub max_variable: Option<CollationMaxVariable>,
-    pub backwards: Option<bool>
+    pub backwards: Option<bool>,
 }
 
 pub async fn watch(
@@ -124,6 +233,19 @@ pub async fn watch(
     Json(payload): Json<Watch>,
 ) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
     log::info!("{{\"fn\": \"watch\", \"method\":\"post\"}}");
+    state.db.watch(&db, &coll, payload, queries).await
+}
+
+pub async fn watch_latest(
+    Extension(state): Extension<State>,
+    Path((db, coll)): Path<(String, String)>,
+    queries: Query<QueriesFormat>,
+) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
+    log::info!("{{\"fn\": \"watch\", \"method\":\"get\"}}");
+    let payload = Watch {
+        pipeline: vec![doc! {"$match":{}}],
+        options: None,
+    };
     state.db.watch(&db, &coll, payload, queries).await
 }
 
@@ -144,7 +266,12 @@ pub async fn aggregate_explain(
     Json(payload): Json<Aggregate>,
 ) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"aggregate_explain\", \"method\":\"post\"}}");
-    Ok(Json(json!(state.db.aggregate_explain(&db, &coll, payload, queries).await?)))
+    Ok(Json(json!(
+        state
+            .db
+            .aggregate_explain(&db, &coll, payload, queries)
+            .await?
+    )))
 }
 
 pub async fn index_delete(
@@ -153,7 +280,9 @@ pub async fn index_delete(
     queries: Query<QueriesDelete>,
 ) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"index_create\", \"method\":\"post\"}}");
-    Ok(Json(json!(state.db.index_delete(&db, &coll, &queries).await?)))
+    Ok(Json(json!(
+        state.db.index_delete(&db, &coll, &queries).await?
+    )))
 }
 
 pub async fn index_create(
@@ -162,7 +291,9 @@ pub async fn index_create(
     Json(payload): Json<Index>,
 ) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"index_create\", \"method\":\"post\"}}");
-    Ok(Json(json!(state.db.index_create(&db, &coll, payload).await?)))
+    Ok(Json(json!(
+        state.db.index_create(&db, &coll, payload).await?
+    )))
 }
 
 pub async fn find_explain(
@@ -172,7 +303,45 @@ pub async fn find_explain(
     Json(payload): Json<Find>,
 ) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"find_explain\", \"method\":\"post\"}}");
-    Ok(Json(json!(state.db.find_explain(&db, &coll, payload, queries).await?)))
+    Ok(Json(json!(
+        state.db.find_explain(&db, &coll, payload, queries).await?
+    )))
+}
+
+pub async fn find_latest_ten(
+    Extension(state): Extension<State>,
+    Path((db, coll)): Path<(String, String)>,
+    queries: Query<QueriesFormat>,
+) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
+    log::info!("{{\"fn\": \"find\", \"method\":\"get\"}}");
+    let payload = Find {
+        filter: doc! {},
+        options: Some(
+            FindOptions::builder()
+                .limit(10)
+                .sort(doc! {"_id": -1})
+                .build(),
+        ),
+    };
+    state.db.find(&db, &coll, payload.into(), queries).await
+}
+
+pub async fn find_latest_one(
+    Extension(state): Extension<State>,
+    Path((db, coll)): Path<(String, String)>,
+    queries: Query<QueriesFormat>,
+) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
+    log::info!("{{\"fn\": \"find\", \"method\":\"get\"}}");
+    let payload = Find {
+        filter: doc! {},
+        options: Some(
+            FindOptions::builder()
+                .limit(1)
+                .sort(doc! {"_id": -1})
+                .build(),
+        ),
+    };
+    state.db.find(&db, &coll, payload.into(), queries).await
 }
 
 pub async fn find(
@@ -185,6 +354,58 @@ pub async fn find(
     state.db.find(&db, &coll, payload, queries).await
 }
 
+pub async fn delete_many(
+    Extension(state): Extension<State>,
+    Path((db, coll)): Path<(String, String)>,
+    Json(payload): Json<DeleteOne>,
+) -> Result<Json<Value>, RestError> {
+    log::info!("{{\"fn\": \"delete_many\", \"method\":\"post\"}}");
+    Ok(Json(json!(
+        state.db.delete_many(&db, &coll, payload).await?
+    )))
+}
+
+pub async fn delete_one(
+    Extension(state): Extension<State>,
+    Path((db, coll)): Path<(String, String)>,
+    Json(payload): Json<DeleteOne>,
+) -> Result<Json<Value>, RestError> {
+    log::info!("{{\"fn\": \"delete_one\", \"method\":\"post\"}}");
+    Ok(Json(json!(state.db.delete_one(&db, &coll, payload).await?)))
+}
+
+pub async fn update_one(
+    Extension(state): Extension<State>,
+    Path((db, coll)): Path<(String, String)>,
+    Json(payload): Json<UpdateOne>,
+) -> Result<Json<Value>, RestError> {
+    log::info!("{{\"fn\": \"update_one\", \"method\":\"post\"}}");
+    Ok(Json(json!(state.db.update_one(&db, &coll, payload).await?)))
+}
+
+pub async fn update_many(
+    Extension(state): Extension<State>,
+    Path((db, coll)): Path<(String, String)>,
+    Json(payload): Json<UpdateOne>,
+) -> Result<Json<Value>, RestError> {
+    log::info!("{{\"fn\": \"update_many\", \"method\":\"post\"}}");
+    Ok(Json(json!(
+        state.db.update_many(&db, &coll, payload).await?
+    )))
+}
+
+pub async fn distinct(
+    Extension(state): Extension<State>,
+    Path((db, coll)): Path<(String, String)>,
+    queries: Query<QueriesFormat>,
+    Json(payload): Json<Distinct>,
+) -> Result<Json<Value>, RestError> {
+    log::info!("{{\"fn\": \"distinct\", \"method\":\"post\"}}");
+    Ok(Json(json!(
+        state.db.distinct(&db, &coll, payload, &queries).await?
+    )))
+}
+
 pub async fn find_one(
     Extension(state): Extension<State>,
     Path((db, coll)): Path<(String, String)>,
@@ -192,7 +413,33 @@ pub async fn find_one(
     Json(payload): Json<FindOne>,
 ) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"find_one\", \"method\":\"post\"}}");
-    Ok(Json(json!(state.db.find_one(&db, &coll, payload, &queries).await?)))
+    Ok(Json(json!(
+        state.db.find_one(&db, &coll, payload, &queries).await?
+    )))
+}
+
+pub async fn insert_many(
+    Extension(state): Extension<State>,
+    Path((db, coll)): Path<(String, String)>,
+    queries: Query<CustomInsertManyOptions>,
+    Json(body): Json<Vec<Bson>>,
+) -> Result<Json<Value>, RestError> {
+    log::info!("{{\"fn\": \"insert\", \"method\":\"post\"}}");
+    Ok(Json(json!(
+        state.db.insert_many(&db, &coll, body, queries).await?
+    )))
+}
+
+pub async fn insert_one(
+    Extension(state): Extension<State>,
+    Path((db, coll)): Path<(String, String)>,
+    queries: Query<CustomInsertOneOptions>,
+    Json(body): Json<Bson>,
+) -> Result<Json<Value>, RestError> {
+    log::info!("{{\"fn\": \"insert_one\", \"method\":\"post\"}}");
+    Ok(Json(json!(
+        state.db.insert_one(&db, &coll, body, queries).await?
+    )))
 }
 
 pub async fn rs_status(Extension(state): Extension<State>) -> Result<Json<Value>, RestError> {
@@ -273,7 +520,9 @@ pub async fn coll_indexes(
     Path((db, coll)): Path<(String, String)>,
 ) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"coll_indexes\", \"method\":\"get\"}}");
-    Ok(Json(json!(state.db.coll_indexes(&db, &coll, &queries).await?)))
+    Ok(Json(json!(
+        state.db.coll_indexes(&db, &coll, &queries).await?
+    )))
 }
 
 pub async fn coll_index_stats(
