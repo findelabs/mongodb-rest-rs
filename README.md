@@ -13,6 +13,7 @@ Options:
   -u, --uri <URI>            Default connection uri [env: MONGODB_URI=]
   -U, --username <USERNAME>  MongoDB username [env: MONGODB_USERNAME=]
   -P, --password <PASSWORD>  MongoDB username password [env: MONGODB_PASSWORD=]
+  -r, --readonly             Should connection be readonly? [env: MONGODB_READONLY=]
   -h, --help                 Print help
   -V, --version              Print version
 ```
