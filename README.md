@@ -17,39 +17,44 @@ Options:
   -V, --version              Print version
 ```
 
-### Endpoints
+## API References
+
+### Replicaset
 ```
 # Get replicaset status
-GET /_cat/status
+GET /rs/status
 
 # Get latest logs
-GET /_cat/log
+GET /rs/log
 
 # Get current operations
-GET /_cat/ops
+GET /rs/ops
 
 # Get replicaset stats
-GET /_cat/stats
+GET /rs/stats
 
 # Get databases
-GET /_cat/dbs
+GET /rs/dbs
 
 # Get collection stats
-GET /_cat/top
+GET /rs/top
 
 # Get current connection info
-GET /_cat/conn
+GET /rs/conn
 
 # Get connection pool info
-GET /_cat/pool
+GET /rs/pool
+```
 
+### Collection Info and Search
+``` 
 # Get database stats
 GET /:db/_stats
 
 # Get database collections
-GET /:db/_collections
+GET /:db
 
-# Get collection document counts
+# Get collection document count
 GET /:db/:coll/_count
 
 # Get collection indexes
@@ -61,78 +66,84 @@ GET /:db/:coll/_index_stats
 # Get collection stats
 GET /:db/:coll/_stats
 
+# Get most recent doc
+GET /:db/:coll/_find_one
+
 # Find a document
-POST /:db/:coll/_find_one[?simple]
+POST /:db/:coll/_find_one[?format=json|ejson]
 {
   "filter": {},
-  "projection": Option<Document>,
+  "options": {
+    "allow_partial_results": bool,
+    "collation": {},
+    "comment": String,
+    "hint": {},
+    "max": {},
+    "max_scan": u64,
+    "max_time": {},
+    "min": {},
+    "projection": {},
+    "read_concern": String,
+    "return_key": bool,
+    "selection_criteria": String,
+    "show_record_id": bool,
+    "skip": u64,
+    "sort": {},
+    "let_vars": {}
+  }
 }
 
+# Get ten most recent docs
+GET /:db/:coll
+GET /:db/:coll/_find
+
 # Find multiple documents
-POST /:db/:coll/_find[?simple]
+POST /:db/:coll/_find[?format=json|ejson]
 {
-  "filter": Document,
-  "projection": Option<Document>,
-  "sort": Option<Document>,
-  "limit": Option<u64>,
-  "skip": Option<u64>,
-  "explain": Option<"queryPlanner | executionStats | allPlansExecution">
+  "filter": {},
+  "options": {
+    "allow_disk_use": bool,
+    "allow_partial_results": bool,
+    "batch_size": u32,
+    "comment": String,
+    "cursor_type": String,
+    "hint": {},
+    "limit": i64,
+    "max": {},
+    "max_await_time": {},
+    "max_scan": u64,
+    "max_time": u32,
+    "min": {},
+    "no_cursor_timeout": bool,
+    "projection": {},
+    "read_concern": String,
+    "return_key": bool,
+    "selection_criteria": String,
+    "show_record_id": bool,
+    "skip": u64,
+    "sort": {},
+    "collation": {},
+    "let_vars": {}
+  }
 }
 
 # Aggregation
-POST /:db/:coll/_aggregate[?simple] 
+POST /:db/:coll/_aggregate[?format=json|ejson] 
 {
-  "pipeline": [Document],
-  "options": Option<Document>,
-  "explain": Option<"queryPlanner | executionStats | allPlansExecution">
-}
-
-# Create index
-POST /:db/:coll/_index 
-{
-  "keys": {}
+  "pipeline": [{}],
   "options": {
-    unique: Option<bool>,
-    name: Option<String>,
-    partial_filter_expression: Option<Document>,
-    sparse: Option<bool>,
-    expire_after: Option<Duration>,
-    hidden: Option<bool>,
-    collation: Option<Collation>,
-    weights: Option<Document>,
-    default_language: Option<String>,
-    language_override: Option<String>,
-    text_index_version: Option<TextIndexVersion>
-  }
-}
-```
-
-### Future
-``` 
-# Find query, show simple results
-GET /:id/:coll/_find?simple
-
-# Delete index
-DELETE /:db/:coll/_index?name=<index name>
-
-# Insert
-POST /:db/:coll/_insert
-{}
-
-# Update/UpdateOne
-POST /:db/:coll/_update
-{
-  "filter": {},
-  "update": {},
-  "upsert": bool
-}
-
-# ReplaceOne
-POST /:db/:coll/_replace_one
-{
-  "filter": {},
-  "replacement": {},
-  "upsert": bool
+    "allow_disk_use": bool,
+    "batch_size": u32,
+    "bypass_document_validation": bool,
+    "collation": {},
+    "comment": String,
+    "hint": {},
+    "max_await_time": u32,
+    "max_time": u32,
+    "read_concern": String,
+    "selection_criteria": String,
+    "write_concern": String,
+    "let_vars": {}
 }
 
 # Distinct
@@ -140,12 +151,101 @@ POST /:db/:coll/_distinct
 {
   "field_name": String,
   "filter": {},
-  "options": DistinctOptions
+  "options": {}
+}
+```
+
+### Collection CRUD Operations
+```
+# Create index
+POST /:db/:coll/_index 
+{
+  "keys": {}
+  "options": {
+    "background": bool,
+    "expire_after": u32,
+    "name": String,
+    "sparse": bool,
+    "storage_engine": {},
+    "unique": bool,
+    "version": u32,
+    "default_language": String,
+    "language_override": String,
+    "text_index_version": u32,
+    "weights": {},
+    "sphere_2d_index_version": u32,
+    "bits": u32,
+    "max": f64,
+    "min": f64,
+    "bucket_size": u32,
+    "partial_filter_expression": {},
+    "collation": {},
+    "wildcard_projection": {},
+    "hidden": bool
+  }
 }
 
-# DeleteOne/Delete
-POST /:db/:coll/_delete
+# Delete index
+DELETE /:db/:coll/_index?name=<index name>
+
+# Insert one doc
+POST /:db/:coll/_insert[bypass_document_validation=bool, w=string, n=u32, w_timeout=u32, journal=bool, comment=string]
+{}
+
+# Insert one doc
+POST /:db/:coll/_insert[bypass_document_validation=bool, ordered=bool, w=string, n=u32, w_timeout=u32, journal=bool, comment=string]
+[{}]
+
+# Delete one document
+POST /:db/:coll/_delete_one
 {
-  "filter": {}
+  "filter": {},
+  "options": {
+    "collation": {},
+    "write_concern": {},
+    "hint": {},
+    "let_vars": {},
+    "comment:" String
+  }
+}
+
+# Delete many documents
+POST /:db/:coll/_delete_many
+{
+  "filter": {},
+  "options": {
+    "collation": {},
+    "write_concern": {},
+    "hint": {},
+    "let_vars": {},
+    "comment:" String
+  }
+}
+
+# Update one document
+POST /:db/:coll/_update_one
+{
+  "filter": {},
+  "update": {},
+  "options": {}
+}
+
+# Update many documents
+POST /:db/:coll/_update
+{
+  "filter": {},
+  "update": {},
+  "options": {}
+ }
+```
+
+### Future
+``` 
+# ReplaceOne
+POST /:db/:coll/_replace_one
+{
+  "filter": {},
+  "replacement": {},
+  "upsert": bool
 }
 ```
