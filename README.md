@@ -221,18 +221,26 @@ POST /:db/:coll/_delete_many
     "comment:" String
   }
 }
-```
 
-### Future
-``` 
-# Update/UpdateOne
+# Update one document
+POST /:db/:coll/_update_one
+{
+  "filter": {},
+  "update": {},
+  "options": {}
+}
+
+# Update many documents
 POST /:db/:coll/_update
 {
   "filter": {},
   "update": {},
-  "upsert": bool
-}
+  "options": {}
+ }
+```
 
+### Future
+``` 
 # ReplaceOne
 POST /:db/:coll/_replace_one
 {
