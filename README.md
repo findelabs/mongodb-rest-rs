@@ -159,7 +159,7 @@ POST /:db/:coll/_distinct
 ### Collection CRUD Operations
 ```
 # Create index
-POST /:db/:coll/_index 
+POST /:db/:coll/_indexes
 {
   "keys": {}
   "options": {
@@ -187,7 +187,7 @@ POST /:db/:coll/_index
 }
 
 # Delete index
-DELETE /:db/:coll/_index?name=<index name>
+DELETE /:db/:coll/_indexes?name=<index name>
 
 # Insert one doc
 POST /:db/:coll/_insert[bypass_document_validation=bool, w=string, n=u32, w_timeout=u32, journal=bool, comment=string]
