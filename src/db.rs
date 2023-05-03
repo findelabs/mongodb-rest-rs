@@ -1,4 +1,5 @@
 use crate::error::Error as RestError;
+use core::time::Duration;
 use axum::body::Bytes;
 use axum::body::StreamBody;
 use axum::extract::Query;
@@ -112,7 +113,7 @@ impl DB {
             index_options.name = options.name;
             index_options.partial_filter_expression = options.partial_filter_expression;
             index_options.sparse = options.sparse;
-            index_options.expire_after = options.expire_after;
+            index_options.expire_after = options.expire_after.map(|e| Duration::from_secs(e));
             index_options.hidden = options.hidden;
             index_options.collation = options.collation;
             index_options.weights = options.weights;

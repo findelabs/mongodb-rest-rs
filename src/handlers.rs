@@ -205,7 +205,7 @@ pub struct IndexCreateOptions {
     pub name: Option<String>,
     pub partial_filter_expression: Option<Document>,
     pub sparse: Option<bool>,
-    pub expire_after: Option<Duration>,
+    pub expire_after: Option<u64>,
     pub hidden: Option<bool>,
     pub collation: Option<Collation>,
     pub weights: Option<Document>,
