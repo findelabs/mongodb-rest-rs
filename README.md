@@ -164,7 +164,7 @@ POST /:db/:coll/_indexes
   "keys": {}
   "options": {
     "background": bool,
-    "expire_after": u32,
+    "expire_after": u64,
     "name": String,
     "sparse": bool,
     "storage_engine": {},
