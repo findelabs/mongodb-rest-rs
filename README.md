@@ -154,6 +154,28 @@ POST /:db/:coll/_distinct
   "filter": {},
   "options": {}
 }
+
+# Watch collection for changes
+GET /:db/:coll/_watch
+
+# Watch collection for changes, with pipeline
+POST /:db/:coll/_watch
+{
+  "pipeline": [{}],
+  "options": {
+    "full_document": String,
+    "full_document_before_change": String,
+    "resume_after": String,
+    "start_at_operation_time": Timestamp,
+    "start_after": String,
+    "max_await_time": Duration,
+    "batch_size": u32,
+    "collation": {},
+    "read_concern": String,
+    "selection_criteria": {},
+    "comment": String,
+  }
+}
 ```
 
 ### Collection CRUD Operations
