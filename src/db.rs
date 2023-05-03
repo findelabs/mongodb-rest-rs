@@ -269,7 +269,10 @@ impl DB {
                 let string = format!("{}\n", bson);
                 Ok(string.into())
             }
-            Err(e) => Err(e)?,
+            Err(e) => {
+                log::error!("Error in change stream: {}", e);
+                Ok(format!("{{\"error\":\"{}\"}}", e.to_string().replace('"', "\\\"")).into())
+            }
         })))
     }
 
