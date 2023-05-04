@@ -277,6 +277,26 @@ POST /:db/:coll/_update
     "let_vars": {},
     "comment": String
   }
+  
+# Get database roles
+GET /:db/_roles
+
+# Create new database role
+POST /:db/_roles
+{
+  "name": String,
+  "privileges": {
+    "resource": String,
+    "actions": [String]
+  },
+  "roles": {
+    "db": String,
+    "role": String
+  }
+}
+
+# Delete role
+DELETE /:db/_roles?name=<index name>
 ```
 
 ### Future
