@@ -702,6 +702,29 @@ impl DB {
         }
     }
 
+    pub async fn run_command<T: Serialize>(&self, db: &str, payload: T) -> Result<Value> {
+        if self.readonly {
+            return Err(RestError::ReadOnly);
+        }
+        log::debug!("Running command against database");
+
+        let database = self.client.database(&db);
+
+        match database.run_command(to_document(&payload)?, None).await {
+            Ok(mut output) => {
+                log::debug!("Successfully ran command against database");
+                output.remove("$clusterTime");
+                output.remove("operationTime");
+                let bson = to_bson(&output)?.into_relaxed_extjson();
+                Ok(bson)
+            }
+            Err(e) => {
+                log::error!("Got error {}", e);
+                return Err(e)?;
+            }
+        }
+    }
+
     pub async fn rs_log(&self) -> Result<Vec<Bson>> {
         log::debug!("Getting getLog");
 

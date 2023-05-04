@@ -18,6 +18,7 @@ mod error;
 mod handlers;
 mod metrics;
 mod state;
+mod roles;
 
 use crate::metrics::{setup_metrics_recorder, track_metrics};
 use handlers::{
@@ -25,8 +26,9 @@ use handlers::{
     databases, db_colls, db_stats, delete_many, delete_one, distinct, echo, find, find_explain,
     find_latest_one, find_latest_ten, find_one, handler_404, health, help, index_create,
     index_delete, insert_many, insert_one, root, rs_conn, rs_log, rs_operations, rs_pool, rs_stats,
-    rs_status, rs_top, update_many, update_one, watch, watch_latest,
+    rs_status, rs_top, update_many, update_one, watch, watch_latest
 };
+use roles::handlers::{get_roles, create_role, drop_role};
 use state::State;
 
 #[derive(Parser, Debug, Clone)]
@@ -88,8 +90,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .route("/rs/top", get(rs_top))
         .route("/rs/conn", get(rs_conn))
         .route("/rs/pool", get(rs_pool))
-        .route("/db/:db/_stats", get(db_stats))
         .route("/db/:db", get(db_colls))
+        .route("/db/:db/_stats", get(db_stats))
+        .route("/db/:db/_roles", get(get_roles))
+        .route("/db/:db/_roles", post(create_role).delete(drop_role))
         .route("/db/:db/:coll", get(find_latest_ten))
         .route("/db/:db/:coll/_aggregate", post(aggregate))
         .route("/db/:db/:coll/_aggregate/explain", post(aggregate_explain))
