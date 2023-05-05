@@ -28,7 +28,7 @@ use handlers::{
     index_delete, insert_many, insert_one, root, rs_conn, rs_log, rs_operations, rs_pool, rs_stats,
     rs_status, rs_top, update_many, update_one, watch, watch_latest
 };
-use roles::handlers::{get_roles, create_role, drop_role};
+use roles::handlers::{get_roles, create_role, drop_role, get_role};
 use state::State;
 
 #[derive(Parser, Debug, Clone)]
@@ -94,6 +94,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .route("/db/:db/_stats", get(db_stats))
         .route("/db/:db/_roles", get(get_roles))
         .route("/db/:db/_roles", post(create_role).delete(drop_role))
+        .route("/db/:db/_roles/:role", get(get_role))
         .route("/db/:db/:coll", get(find_latest_ten))
         .route("/db/:db/:coll/_aggregate", post(aggregate))
         .route("/db/:db/:coll/_aggregate/explain", post(aggregate_explain))

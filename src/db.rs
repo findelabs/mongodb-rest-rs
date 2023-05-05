@@ -298,7 +298,7 @@ impl DB {
                     None | Some(Formats::Json) => to_bson(&o)?.into_relaxed_extjson(),
                     Some(Formats::Ejson) => to_bson(&o)?.into_canonical_extjson(),
                 };
-                log::debug!("Change stream event: {:?}", bson);
+                log::debug!("Found doc: {:?}", bson);
                 let string = format!("{}\n", bson);
                 Ok(string.into())
             }
@@ -331,7 +331,7 @@ impl DB {
                     None | Some(Formats::Json) => to_bson(&o)?.into_relaxed_extjson(),
                     Some(Formats::Ejson) => to_bson(&o)?.into_canonical_extjson(),
                 };
-                log::debug!("Change stream event: {:?}", bson);
+                log::debug!("Found doc: {:?}", bson);
                 let string = format!("{}\n", bson);
                 Ok(string.into())
             }
@@ -702,8 +702,8 @@ impl DB {
         }
     }
 
-    pub async fn run_command<T: Serialize>(&self, db: &str, payload: T) -> Result<Value> {
-        if self.readonly {
+    pub async fn run_command<T: Serialize>(&self, db: &str, payload: T, makes_changes: bool) -> Result<Value> {
+        if makes_changes && self.readonly {
             return Err(RestError::ReadOnly);
         }
         log::debug!("Running command against database");

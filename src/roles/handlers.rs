@@ -71,7 +71,7 @@ pub async fn create_role(
 ) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"create_role\", \"method\":\"post\"}}");
     Ok(Json(json!(
-        state.db.run_command(&db, payload).await?
+        state.db.run_command(&db, payload, true).await?
     )))
 }
 
@@ -85,6 +85,22 @@ pub async fn drop_role(
     let payload = doc!{"dropRole": queries.name.clone()};
 
     Ok(Json(json!(
-        state.db.run_command(&db, payload).await?
+        state.db.run_command(&db, payload, true).await?
     )))
+}
+
+pub async fn get_role(
+    Extension(state): Extension<State>,
+    Path((db, name)): Path<(String, String)>,
+    queries: Query<QueriesFormat>,
+) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
+    log::info!("{{\"fn\": \"get_role\", \"method\":\"get\"}}");
+    let payload = Find {
+        filter: doc! {"role": &name},
+        options: None
+    };
+
+    log::debug!("Searching for roles with {:?}", payload);
+
+    state.db.find(&db, &"system.roles", payload, queries).await
 }
