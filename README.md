@@ -281,6 +281,9 @@ POST /:db/:coll/_update
 # Get database roles
 GET /:db/_roles
 
+# Get single database role
+GET /:db/_roles/:role
+
 # Create new database role
 POST /:db/_roles
 {
