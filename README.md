@@ -288,14 +288,14 @@ GET /:db/_roles/:role
 POST /:db/_roles
 {
   "name": String,
-  "privileges": {
+  "privileges": [{
     "resource": String,
     "actions": [String]
-  },
-  "roles": {
+  }],
+  "roles": [{
     "db": String,
     "role": String
-  }
+  }]
 }
 
 # Delete role
