@@ -209,7 +209,7 @@ POST /:db/:coll/_indexes
 }
 
 # Delete index
-DELETE /:db/:coll/_indexes?name=<index name>
+DELETE /:db/:coll/_indexes/:index
 
 # Insert one doc
 POST /:db/:coll/_insert[bypass_document_validation=bool, w=string, n=u32, w_timeout=u32, journal=bool, comment=string]
@@ -281,22 +281,25 @@ POST /:db/:coll/_update
 # Get database roles
 GET /:db/_roles
 
+# Get single database role
+GET /:db/_roles/:role
+
 # Create new database role
 POST /:db/_roles
 {
   "name": String,
-  "privileges": {
+  "privileges": [{
     "resource": String,
     "actions": [String]
-  },
-  "roles": {
+  }],
+  "roles": [{
     "db": String,
     "role": String
-  }
+  }]
 }
 
 # Delete role
-DELETE /:db/_roles?name=<index name>
+DELETE /:db/_roles/:role
 ```
 
 ### Future
