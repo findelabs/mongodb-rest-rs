@@ -6,6 +6,8 @@ use axum::{
     response::IntoResponse,
     Extension, Json,
 };
+use bson::to_document;
+use bson::to_bson;
 use bson::Document;
 use bson::{doc, Bson};
 use clap::{crate_description, crate_name, crate_version};
@@ -265,12 +267,29 @@ pub async fn aggregate_explain(
     queries: Query<ExplainFormat>,
     Json(payload): Json<Aggregate>,
 ) -> Result<Json<Value>, RestError> {
+    use crate::db::AggregateRaw;
+    use crate::db::Explain;
+
     log::info!("{{\"fn\": \"aggregate_explain\", \"method\":\"post\"}}");
+
+    let aggregate_raw = AggregateRaw {
+        aggregate: coll.to_string(),
+        pipeline: payload.pipeline,
+        cursor: doc! {},
+    };
+
+   let payload = Explain {
+        explain: to_document(&aggregate_raw)?,
+        verbosity: queries
+            .verbosity
+            .as_ref()
+            .unwrap_or(&"allPlansExecution".to_string())
+            .clone(),
+        comment: "mongodb-rest-rs explain".to_string(),
+    };
+
     Ok(Json(json!(
-        state
-            .db
-            .aggregate_explain(&db, &coll, payload, queries)
-            .await?
+        state.db.run_command(&db, payload, false).await?
     )))
 }
 
@@ -302,9 +321,38 @@ pub async fn find_explain(
     queries: Query<ExplainFormat>,
     Json(payload): Json<Find>,
 ) -> Result<Json<Value>, RestError> {
+    use crate::db::{FindRaw, Explain};
+
     log::info!("{{\"fn\": \"find_explain\", \"method\":\"post\"}}");
+
+    let find_raw = FindRaw {
+        find: coll.to_string(),
+        filter: payload.filter.clone(),
+        sort: payload.options.clone().map_or(None, |x| x.sort.clone()),
+        projection: payload
+            .options
+            .clone()
+            .map_or(None, |x| x.projection.clone()),
+        limit: payload.options.clone().map_or(None, |x| x.limit.clone()),
+        skip: payload.options.clone().map_or(None, |x| x.skip.clone()),
+        collation: payload
+            .options
+            .clone()
+            .map_or(None, |x| x.collation.clone()),
+    };
+
+    let payload = Explain {
+        explain: to_document(&find_raw)?,
+        verbosity: queries
+            .verbosity
+            .as_ref()
+            .unwrap_or(&"allPlansExecution".to_string())
+            .clone(),
+        comment: "mongodb-rest-rs explain".to_string(),
+    };
+
     Ok(Json(json!(
-        state.db.find_explain(&db, &coll, payload, queries).await?
+        state.db.run_command(&db, payload, false).await?
     )))
 }
 
@@ -444,37 +492,81 @@ pub async fn insert_one(
 
 pub async fn rs_status(Extension(state): Extension<State>) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"rs_status\", \"method\":\"get\"}}");
-    Ok(Json(state.db.rs_status().await?))
+
+    let payload = doc! { "replSetGetStatus": 1};
+
+    Ok(Json(json!(
+        state.db.run_command(&"admin", payload, false).await?
+    )))
 }
 
 pub async fn rs_log(Extension(state): Extension<State>) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"rs_log\", \"method\":\"get\"}}");
-    Ok(Json(json!(state.db.rs_log().await?)))
+    let payload = doc! { "getLog": "global"};
+
+    Ok(Json(json!(
+        state.db.run_command(&"admin", payload, false).await?
+    )))
 }
 
 pub async fn rs_operations(Extension(state): Extension<State>) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"rs_operations\", \"method\":\"get\"}}");
-    Ok(Json(json!(state.db.rs_operations().await?)))
+    let payload = doc! { "currentOp": 1};
+    let response = state.db.run_command(&"admin", payload, false).await?;
+
+    log::debug!("Successfully got inprog");
+    let results = response 
+        .get("inprog")
+        .expect("Missing inprog field")
+        .as_array()
+        .expect("Failed to get log field")
+        .clone();
+
+    let output = results
+        .iter()
+        .map(|x| {
+            let mut doc = to_document(x).expect("Malformed operation doc");
+            doc.remove("$clusterTime");
+            doc.remove("operationTime");
+            let bson = to_bson(&x)
+                .expect("Malformed bson operation doc")
+                .into_relaxed_extjson();
+            bson
+        })
+        .collect();
+    Ok(Json(output))
 }
 
 pub async fn rs_stats(Extension(state): Extension<State>) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"rs_stats\", \"method\":\"get\"}}");
-    Ok(Json(json!(state.db.rs_stats().await?)))
+    let payload  = doc! { "serverStatus": 1};
+    Ok(Json(json!(
+        state.db.run_command(&"admin", payload, false).await?
+    )))
 }
 
 pub async fn rs_top(Extension(state): Extension<State>) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"rs_top\", \"method\":\"get\"}}");
-    Ok(Json(json!(state.db.rs_top().await?)))
+    let payload = doc! { "top": 1};
+    Ok(Json(json!(
+        state.db.run_command(&"admin", payload, false).await?
+    )))
 }
 
 pub async fn rs_conn(Extension(state): Extension<State>) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"rs_conn\", \"method\":\"get\"}}");
-    Ok(Json(json!(state.db.rs_conn().await?)))
+    let payload  = doc! { "connectionStatus": 1};
+    Ok(Json(json!(
+        state.db.run_command(&"admin", payload, false).await?
+    )))
 }
 
 pub async fn rs_pool(Extension(state): Extension<State>) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"rs_pool\", \"method\":\"get\"}}");
-    Ok(Json(json!(state.db.rs_pool().await?)))
+    let payload  = doc! { "connPoolStats": 1};
+    Ok(Json(json!(
+        state.db.run_command(&"admin", payload, false).await?
+    )))
 }
 
 pub async fn db_stats(
@@ -482,7 +574,10 @@ pub async fn db_stats(
     Path(db): Path<String>,
 ) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"db_stats\", \"method\":\"get\"}}");
-    Ok(Json(json!(state.db.db_stats(&db).await?)))
+    let payload = doc! { "dbStats": 1};
+    Ok(Json(json!(
+        state.db.run_command(&db, payload, false).await?
+    )))
 }
 
 pub async fn coll_stats(
@@ -490,7 +585,10 @@ pub async fn coll_stats(
     Path((db, coll)): Path<(String, String)>,
 ) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"coll_stats\", \"method\":\"get\"}}");
-    Ok(Json(json!(state.db.coll_stats(&db, &coll).await?)))
+    let payload = doc! { "collStats": coll};
+    Ok(Json(json!(
+        state.db.run_command(&db, payload, false).await?
+    )))
 }
 
 pub async fn databases(Extension(state): Extension<State>) -> Result<Json<Value>, RestError> {
@@ -542,11 +640,6 @@ pub async fn root() -> Json<Value> {
     Json(
         json!({ "version": crate_version!(), "name": crate_name!(), "description": crate_description!()}),
     )
-}
-
-pub async fn echo(Json(payload): Json<Value>) -> Json<Value> {
-    log::info!("{{\"fn\": \"echo\", \"method\":\"post\"}}");
-    Json(payload)
 }
 
 pub async fn help() -> Json<Value> {

@@ -77,12 +77,11 @@ pub async fn create_role(
 
 pub async fn drop_role(
     Extension(state): Extension<State>,
-    Path(db): Path<String>,
-    queries: Query<QueriesName>
+    Path((db, role)): Path<(String, String)>,
 ) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"drop_role\", \"method\":\"post\"}}");
 
-    let payload = doc!{"dropRole": queries.name.clone()};
+    let payload = doc!{"dropRole": role};
 
     Ok(Json(json!(
         state.db.run_command(&db, payload, true).await?
