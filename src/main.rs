@@ -24,6 +24,7 @@ mod queries;
 mod index;
 mod delete;
 mod insert;
+mod update;
 
 use crate::metrics::{setup_metrics_recorder, track_metrics};
 use handlers::{
@@ -31,13 +32,14 @@ use handlers::{
     databases, db_colls, db_stats, distinct, 
     handler_404, health, help, 
     root, rs_conn, rs_log, rs_operations, rs_pool, rs_stats,
-    rs_status, rs_top, update_many, update_one, watch, watch_latest
+    rs_status, rs_top, watch, watch_latest
 };
 use roles::handlers::{get_roles, create_role, drop_role, get_role};
 use find::handlers::{find_explain, find_latest_ten, find_latest_one, find, find_one};
 use index::handlers::{index_create, index_delete, indexes, index_stats};
 use delete::handlers::{delete_one, delete_many};
 use insert::handlers::{insert_one, insert_many};
+use update::handlers::{update_one, update_many};
 use state::State;
 
 #[derive(Parser, Debug, Clone)]

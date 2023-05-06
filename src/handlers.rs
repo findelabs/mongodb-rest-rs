@@ -15,7 +15,6 @@ use futures::Stream;
 use mongodb::options::{
     AggregateOptions, ChangeStreamOptions,
     DistinctOptions,
-    UpdateModifications, UpdateOptions,
 };
 use serde::{Deserialize};
 use serde_json::json;
@@ -25,13 +24,6 @@ use serde_json::Value;
 use crate::error::Error as RestError;
 use crate::queries::{ExplainFormat, QueriesFormat};
 use crate::State;
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct UpdateOne {
-    pub filter: Document,
-    pub update: UpdateModifications,
-    pub options: Option<UpdateOptions>,
-}
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Distinct {
@@ -114,26 +106,6 @@ pub async fn aggregate_explain(
 
     Ok(Json(json!(
         state.db.run_command(&db, payload, false).await?
-    )))
-}
-
-pub async fn update_one(
-    Extension(state): Extension<State>,
-    Path((db, coll)): Path<(String, String)>,
-    Json(payload): Json<UpdateOne>,
-) -> Result<Json<Value>, RestError> {
-    log::info!("{{\"fn\": \"update_one\", \"method\":\"post\"}}");
-    Ok(Json(json!(state.db.update_one(&db, &coll, payload).await?)))
-}
-
-pub async fn update_many(
-    Extension(state): Extension<State>,
-    Path((db, coll)): Path<(String, String)>,
-    Json(payload): Json<UpdateOne>,
-) -> Result<Json<Value>, RestError> {
-    log::info!("{{\"fn\": \"update_many\", \"method\":\"post\"}}");
-    Ok(Json(json!(
-        state.db.update_many(&db, &coll, payload).await?
     )))
 }
 

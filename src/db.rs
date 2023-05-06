@@ -21,9 +21,10 @@ use crate::index::structs::Index;
 use crate::find::handlers::{FindOne, Find};
 use crate::delete::structs::DeleteOne;
 use crate::insert::structs::{CustomInsertManyOptions, CustomInsertOneOptions};
+use crate::update::structs::Update;
 use crate::handlers::{
     Aggregate, Distinct, 
-    UpdateOne, Watch,
+    Watch,
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -384,7 +385,7 @@ impl DB {
         &self,
         database: &str,
         collection: &str,
-        payload: UpdateOne,
+        payload: Update,
     ) -> Result<Value> {
         if self.readonly {
             return Err(RestError::ReadOnly);
@@ -417,7 +418,7 @@ impl DB {
         &self,
         database: &str,
         collection: &str,
-        payload: UpdateOne,
+        payload: Update,
     ) -> Result<Value> {
         if self.readonly {
             return Err(RestError::ReadOnly);
