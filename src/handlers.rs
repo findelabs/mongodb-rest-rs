@@ -16,68 +16,17 @@ use futures::Stream;
 use mongodb::options::{
     Acknowledgment, AggregateOptions, ChangeStreamOptions, Collation, CollationAlternate,
     CollationCaseFirst, CollationMaxVariable, CollationStrength, DeleteOptions, DistinctOptions,
-    FindOneOptions, FindOptions, InsertManyOptions, InsertOneOptions, TextIndexVersion,
+    InsertManyOptions, InsertOneOptions, TextIndexVersion,
     UpdateModifications, UpdateOptions, WriteConcern,
 };
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize};
 use serde_json::json;
 use serde_json::Value;
 //use axum_macros::debug_handler;
 
 use crate::error::Error as RestError;
+use crate::queries::{ExplainFormat, QueriesFormat, QueriesDelete};
 use crate::State;
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub enum Formats {
-    #[serde(rename = "json")]
-    Json,
-    #[serde(rename = "ejson")]
-    Ejson,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct ExplainVerbosity {
-    verbosity: String,
-}
-
-impl Default for Formats {
-    fn default() -> Self {
-        Formats::Json
-    }
-}
-
-impl Default for QueriesFormat {
-    fn default() -> Self {
-        QueriesFormat {
-            format: Some(Formats::default()),
-        }
-    }
-}
-
-impl Default for ExplainFormat {
-    fn default() -> Self {
-        ExplainFormat {
-            format: Some(Formats::default()),
-            verbosity: Some(String::from("allPlansExecution")),
-        }
-    }
-}
-
-#[derive(Clone, Deserialize)]
-pub struct ExplainFormat {
-    pub format: Option<Formats>,
-    pub verbosity: Option<String>,
-}
-
-#[derive(Clone, Deserialize)]
-pub struct QueriesFormat {
-    pub format: Option<Formats>,
-}
-
-#[derive(Deserialize)]
-pub struct QueriesDelete {
-    pub name: String,
-}
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct DeleteOne {
@@ -97,18 +46,6 @@ pub struct Distinct {
     pub field_name: String,
     pub filter: Option<Document>,
     pub options: Option<DistinctOptions>,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct FindOne {
-    pub filter: Document,
-    pub options: Option<FindOneOptions>,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct Find {
-    pub filter: Document,
-    pub options: Option<FindOptions>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -315,93 +252,6 @@ pub async fn index_create(
     )))
 }
 
-pub async fn find_explain(
-    Extension(state): Extension<State>,
-    Path((db, coll)): Path<(String, String)>,
-    queries: Query<ExplainFormat>,
-    Json(payload): Json<Find>,
-) -> Result<Json<Value>, RestError> {
-    use crate::db::{FindRaw, Explain};
-
-    log::info!("{{\"fn\": \"find_explain\", \"method\":\"post\"}}");
-
-    let find_raw = FindRaw {
-        find: coll.to_string(),
-        filter: payload.filter.clone(),
-        sort: payload.options.clone().map_or(None, |x| x.sort.clone()),
-        projection: payload
-            .options
-            .clone()
-            .map_or(None, |x| x.projection.clone()),
-        limit: payload.options.clone().map_or(None, |x| x.limit.clone()),
-        skip: payload.options.clone().map_or(None, |x| x.skip.clone()),
-        collation: payload
-            .options
-            .clone()
-            .map_or(None, |x| x.collation.clone()),
-    };
-
-    let payload = Explain {
-        explain: to_document(&find_raw)?,
-        verbosity: queries
-            .verbosity
-            .as_ref()
-            .unwrap_or(&"allPlansExecution".to_string())
-            .clone(),
-        comment: "mongodb-rest-rs explain".to_string(),
-    };
-
-    Ok(Json(json!(
-        state.db.run_command(&db, payload, false).await?
-    )))
-}
-
-pub async fn find_latest_ten(
-    Extension(state): Extension<State>,
-    Path((db, coll)): Path<(String, String)>,
-    queries: Query<QueriesFormat>,
-) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
-    log::info!("{{\"fn\": \"find\", \"method\":\"get\"}}");
-    let payload = Find {
-        filter: doc! {},
-        options: Some(
-            FindOptions::builder()
-                .limit(10)
-                .sort(doc! {"_id": -1})
-                .build(),
-        ),
-    };
-    state.db.find(&db, &coll, payload.into(), queries).await
-}
-
-pub async fn find_latest_one(
-    Extension(state): Extension<State>,
-    Path((db, coll)): Path<(String, String)>,
-    queries: Query<QueriesFormat>,
-) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
-    log::info!("{{\"fn\": \"find\", \"method\":\"get\"}}");
-    let payload = Find {
-        filter: doc! {},
-        options: Some(
-            FindOptions::builder()
-                .limit(1)
-                .sort(doc! {"_id": -1})
-                .build(),
-        ),
-    };
-    state.db.find(&db, &coll, payload.into(), queries).await
-}
-
-pub async fn find(
-    Extension(state): Extension<State>,
-    Path((db, coll)): Path<(String, String)>,
-    queries: Query<QueriesFormat>,
-    Json(payload): Json<Find>,
-) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
-    log::info!("{{\"fn\": \"find\", \"method\":\"post\"}}");
-    state.db.find(&db, &coll, payload, queries).await
-}
-
 pub async fn delete_many(
     Extension(state): Extension<State>,
     Path((db, coll)): Path<(String, String)>,
@@ -451,18 +301,6 @@ pub async fn distinct(
     log::info!("{{\"fn\": \"distinct\", \"method\":\"post\"}}");
     Ok(Json(json!(
         state.db.distinct(&db, &coll, payload, &queries).await?
-    )))
-}
-
-pub async fn find_one(
-    Extension(state): Extension<State>,
-    Path((db, coll)): Path<(String, String)>,
-    queries: Query<QueriesFormat>,
-    Json(payload): Json<FindOne>,
-) -> Result<Json<Value>, RestError> {
-    log::info!("{{\"fn\": \"find_one\", \"method\":\"post\"}}");
-    Ok(Json(json!(
-        state.db.find_one(&db, &coll, payload, &queries).await?
     )))
 }
 

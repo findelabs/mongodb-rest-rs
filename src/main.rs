@@ -19,16 +19,19 @@ mod handlers;
 mod metrics;
 mod state;
 mod roles;
+mod find;
+mod queries;
 
 use crate::metrics::{setup_metrics_recorder, track_metrics};
 use handlers::{
     aggregate, aggregate_explain, coll_count, coll_index_stats, coll_indexes, coll_stats,
-    databases, db_colls, db_stats, delete_many, delete_one, distinct, find, find_explain,
-    find_latest_one, find_latest_ten, find_one, handler_404, health, help, index_create,
+    databases, db_colls, db_stats, delete_many, delete_one, distinct, 
+    handler_404, health, help, index_create,
     index_delete, insert_many, insert_one, root, rs_conn, rs_log, rs_operations, rs_pool, rs_stats,
     rs_status, rs_top, update_many, update_one, watch, watch_latest
 };
 use roles::handlers::{get_roles, create_role, drop_role, get_role};
+use find::handlers::{find_explain, find_latest_ten, find_latest_one, find, find_one};
 use state::State;
 
 #[derive(Parser, Debug, Clone)]
@@ -129,7 +132,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let app = Router::new()
         .merge(v1.clone())
         .merge(standard)
-        .nest("/api/v1", v1)
+        .nest("/api/beta", v1)
         .layer(TraceLayer::new_for_http())
         .route_layer(middleware::from_fn(track_metrics))
         .fallback(handler_404)

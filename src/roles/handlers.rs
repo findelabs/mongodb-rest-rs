@@ -12,7 +12,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::Error as RestError;
 use crate::State;
-use crate::handlers::{QueriesFormat, Find};
+use crate::find::handlers::Find;
+use crate::queries::QueriesFormat;
 
 #[derive(Deserialize)]
 pub struct QueriesName {

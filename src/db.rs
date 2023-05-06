@@ -16,9 +16,11 @@ use mongodb::{
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+use crate::queries::{Formats, QueriesDelete, QueriesFormat};
+use crate::find::handlers::{FindOne, Find};
 use crate::handlers::{
     Aggregate, CustomInsertManyOptions, CustomInsertOneOptions, DeleteOne, Distinct, 
-    Find, FindOne, Formats, Index, QueriesDelete, QueriesFormat, UpdateOne, Watch,
+    Index, UpdateOne, Watch,
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
