@@ -20,8 +20,9 @@ use crate::queries::{Formats, QueriesDelete, QueriesFormat};
 use crate::index::structs::Index;
 use crate::find::handlers::{FindOne, Find};
 use crate::delete::structs::DeleteOne;
+use crate::insert::structs::{CustomInsertManyOptions, CustomInsertOneOptions};
 use crate::handlers::{
-    Aggregate, CustomInsertManyOptions, CustomInsertOneOptions, Distinct, 
+    Aggregate, Distinct, 
     UpdateOne, Watch,
 };
 

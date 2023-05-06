@@ -9,15 +9,13 @@ use axum::{
 use bson::to_document;
 use bson::to_bson;
 use bson::Document;
-use bson::{doc, Bson};
+use bson::{doc};
 use clap::{crate_description, crate_name, crate_version};
-use core::time::Duration;
 use futures::Stream;
 use mongodb::options::{
-    Acknowledgment, AggregateOptions, ChangeStreamOptions,
+    AggregateOptions, ChangeStreamOptions,
     DistinctOptions,
-    InsertManyOptions, InsertOneOptions, 
-    UpdateModifications, UpdateOptions, WriteConcern,
+    UpdateModifications, UpdateOptions,
 };
 use serde::{Deserialize};
 use serde_json::json;
@@ -52,78 +50,6 @@ pub struct Watch {
 pub struct Aggregate {
     pub pipeline: Vec<Document>,
     pub options: Option<AggregateOptions>,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-#[serde(deny_unknown_fields)]
-pub struct CustomInsertManyOptions {
-    pub bypass_document_validation: Option<bool>,
-    pub ordered: Option<bool>,
-    pub w: Option<Acknowledgment>,
-    pub n: Option<u32>,
-    pub w_timeout: Option<Duration>,
-    pub journal: Option<bool>,
-    pub comment: Option<Bson>,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-#[serde(deny_unknown_fields)]
-pub struct CustomInsertOneOptions {
-    pub bypass_document_validation: Option<bool>,
-    pub w: Option<Acknowledgment>,
-    pub n: Option<u32>,
-    pub w_timeout: Option<Duration>,
-    pub journal: Option<bool>,
-    pub comment: Option<Bson>,
-}
-
-impl From<CustomInsertManyOptions> for InsertManyOptions {
-    fn from(item: CustomInsertManyOptions) -> Self {
-        let w_concern = if let Some(w) = item.w {
-            Some(w.into())
-        } else if let Some(n) = item.n {
-            Some(n.into())
-        } else {
-            None
-        };
-
-        let write_concern = WriteConcern::builder()
-            .w(w_concern)
-            .w_timeout(item.w_timeout)
-            .journal(item.journal)
-            .build();
-
-        InsertManyOptions::builder()
-            .bypass_document_validation(item.bypass_document_validation)
-            .ordered(item.ordered)
-            .write_concern(write_concern)
-            .comment(item.comment)
-            .build()
-    }
-}
-
-impl From<CustomInsertOneOptions> for InsertOneOptions {
-    fn from(item: CustomInsertOneOptions) -> Self {
-        let w_concern = if let Some(w) = item.w {
-            Some(w.into())
-        } else if let Some(n) = item.n {
-            Some(n.into())
-        } else {
-            None
-        };
-
-        let write_concern = WriteConcern::builder()
-            .w(w_concern)
-            .w_timeout(item.w_timeout)
-            .journal(item.journal)
-            .build();
-
-        InsertOneOptions::builder()
-            .bypass_document_validation(item.bypass_document_validation)
-            .write_concern(write_concern)
-            .comment(item.comment)
-            .build()
-    }
 }
 
 pub async fn watch(
@@ -220,30 +146,6 @@ pub async fn distinct(
     log::info!("{{\"fn\": \"distinct\", \"method\":\"post\"}}");
     Ok(Json(json!(
         state.db.distinct(&db, &coll, payload, &queries).await?
-    )))
-}
-
-pub async fn insert_many(
-    Extension(state): Extension<State>,
-    Path((db, coll)): Path<(String, String)>,
-    queries: Query<CustomInsertManyOptions>,
-    Json(body): Json<Vec<Bson>>,
-) -> Result<Json<Value>, RestError> {
-    log::info!("{{\"fn\": \"insert\", \"method\":\"post\"}}");
-    Ok(Json(json!(
-        state.db.insert_many(&db, &coll, body, queries).await?
-    )))
-}
-
-pub async fn insert_one(
-    Extension(state): Extension<State>,
-    Path((db, coll)): Path<(String, String)>,
-    queries: Query<CustomInsertOneOptions>,
-    Json(body): Json<Bson>,
-) -> Result<Json<Value>, RestError> {
-    log::info!("{{\"fn\": \"insert_one\", \"method\":\"post\"}}");
-    Ok(Json(json!(
-        state.db.insert_one(&db, &coll, body, queries).await?
     )))
 }
 
