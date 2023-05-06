@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::Error as RestError;
 use crate::State;
-use crate::find::handlers::Find;
+use crate::find::structs::Find;
 use crate::queries::QueriesFormat;
 
 #[derive(Deserialize)]

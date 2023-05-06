@@ -30,13 +30,13 @@ mod watch;
 use crate::metrics::{setup_metrics_recorder, track_metrics};
 use handlers::{
     aggregate, aggregate_explain, coll_count, coll_stats,
-    databases, db_colls, db_stats, distinct, 
+    databases, db_colls, db_stats, 
     handler_404, health, help, 
     root, rs_conn, rs_log, rs_operations, rs_pool, rs_stats,
     rs_status, rs_top, 
 };
 use roles::handlers::{get_roles, create_role, drop_role, get_role};
-use find::handlers::{find_explain, find_latest_ten, find_latest_one, find, find_one};
+use find::handlers::{find_explain, find_latest_ten, find_latest_one, find, find_one, distinct};
 use index::handlers::{index_create, index_delete, indexes, index_stats};
 use delete::handlers::{delete_one, delete_many};
 use insert::handlers::{insert_one, insert_many};

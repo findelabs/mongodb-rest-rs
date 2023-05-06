@@ -14,7 +14,6 @@ use clap::{crate_description, crate_name, crate_version};
 use futures::Stream;
 use mongodb::options::{
     AggregateOptions, 
-    DistinctOptions,
 };
 use serde::{Deserialize};
 use serde_json::json;
@@ -24,13 +23,6 @@ use serde_json::Value;
 use crate::error::Error as RestError;
 use crate::queries::{ExplainFormat, QueriesFormat};
 use crate::State;
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct Distinct {
-    pub field_name: String,
-    pub filter: Option<Document>,
-    pub options: Option<DistinctOptions>,
-}
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Aggregate {
@@ -77,18 +69,6 @@ pub async fn aggregate_explain(
 
     Ok(Json(json!(
         state.db.run_command(&db, payload, false).await?
-    )))
-}
-
-pub async fn distinct(
-    Extension(state): Extension<State>,
-    Path((db, coll)): Path<(String, String)>,
-    queries: Query<QueriesFormat>,
-    Json(payload): Json<Distinct>,
-) -> Result<Json<Value>, RestError> {
-    log::info!("{{\"fn\": \"distinct\", \"method\":\"post\"}}");
-    Ok(Json(json!(
-        state.db.distinct(&db, &coll, payload, &queries).await?
     )))
 }
 

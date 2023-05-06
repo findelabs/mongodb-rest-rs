@@ -5,30 +5,18 @@ use axum::{
     Extension,
     Json,
 };
-use bson::{to_document, Document, doc};
+use bson::{to_document, doc};
 use futures::Stream;
 use serde_json::{json, Value};
-use serde::{Deserialize};
 
 use mongodb::options::{
-    FindOneOptions, FindOptions
+    FindOptions
 };
 
 use crate::error::Error as RestError;
 use crate::queries::{ExplainFormat, QueriesFormat};
+use crate::find::structs::{FindOne, Find, Distinct};
 use crate::State;
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct FindOne {
-    pub filter: Document,
-    pub options: Option<FindOneOptions>,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct Find {
-    pub filter: Document,
-    pub options: Option<FindOptions>,
-}
 
 pub async fn find_explain(
     Extension(state): Extension<State>,
@@ -126,5 +114,17 @@ pub async fn find_one(
     log::info!("{{\"fn\": \"find_one\", \"method\":\"post\"}}");
     Ok(Json(json!(
         state.db.find_one(&db, &coll, payload, &queries).await?
+    )))
+}
+
+pub async fn distinct(
+    Extension(state): Extension<State>,
+    Path((db, coll)): Path<(String, String)>,
+    queries: Query<QueriesFormat>,
+    Json(payload): Json<Distinct>,
+) -> Result<Json<Value>, RestError> {
+    log::info!("{{\"fn\": \"distinct\", \"method\":\"post\"}}");
+    Ok(Json(json!(
+        state.db.distinct(&db, &coll, payload, &queries).await?
     )))
 }

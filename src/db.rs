@@ -18,13 +18,13 @@ use serde_json::{json, Value};
 
 use crate::queries::{Formats, QueriesDelete, QueriesFormat};
 use crate::index::structs::Index;
-use crate::find::handlers::{FindOne, Find};
+use crate::find::structs::{FindOne, Find, Distinct};
 use crate::delete::structs::DeleteOne;
 use crate::insert::structs::{CustomInsertManyOptions, CustomInsertOneOptions};
 use crate::update::structs::Update;
 use crate::watch::structs::Watch;
 use crate::handlers::{
-    Aggregate, Distinct, 
+    Aggregate, 
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
