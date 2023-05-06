@@ -19,8 +19,9 @@ use serde_json::{json, Value};
 use crate::queries::{Formats, QueriesDelete, QueriesFormat};
 use crate::index::structs::Index;
 use crate::find::handlers::{FindOne, Find};
+use crate::delete::structs::DeleteOne;
 use crate::handlers::{
-    Aggregate, CustomInsertManyOptions, CustomInsertOneOptions, DeleteOne, Distinct, 
+    Aggregate, CustomInsertManyOptions, CustomInsertOneOptions, Distinct, 
     UpdateOne, Watch,
 };
 

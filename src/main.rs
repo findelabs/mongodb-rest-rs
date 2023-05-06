@@ -22,11 +22,12 @@ mod roles;
 mod find;
 mod queries;
 mod index;
+mod delete;
 
 use crate::metrics::{setup_metrics_recorder, track_metrics};
 use handlers::{
     aggregate, aggregate_explain, coll_count, coll_stats,
-    databases, db_colls, db_stats, delete_many, delete_one, distinct, 
+    databases, db_colls, db_stats, distinct, 
     handler_404, health, help, 
     insert_many, insert_one, root, rs_conn, rs_log, rs_operations, rs_pool, rs_stats,
     rs_status, rs_top, update_many, update_one, watch, watch_latest
@@ -34,6 +35,7 @@ use handlers::{
 use roles::handlers::{get_roles, create_role, drop_role, get_role};
 use find::handlers::{find_explain, find_latest_ten, find_latest_one, find, find_one};
 use index::handlers::{index_create, index_delete, indexes, index_stats};
+use delete::handlers::{delete_one, delete_many};
 use state::State;
 
 #[derive(Parser, Debug, Clone)]

@@ -15,7 +15,7 @@ use core::time::Duration;
 use futures::Stream;
 use mongodb::options::{
     Acknowledgment, AggregateOptions, ChangeStreamOptions,
-    DeleteOptions, DistinctOptions,
+    DistinctOptions,
     InsertManyOptions, InsertOneOptions, 
     UpdateModifications, UpdateOptions, WriteConcern,
 };
@@ -27,12 +27,6 @@ use serde_json::Value;
 use crate::error::Error as RestError;
 use crate::queries::{ExplainFormat, QueriesFormat};
 use crate::State;
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct DeleteOne {
-    pub filter: Document,
-    pub options: Option<DeleteOptions>,
-}
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct UpdateOne {
@@ -195,26 +189,6 @@ pub async fn aggregate_explain(
     Ok(Json(json!(
         state.db.run_command(&db, payload, false).await?
     )))
-}
-
-pub async fn delete_many(
-    Extension(state): Extension<State>,
-    Path((db, coll)): Path<(String, String)>,
-    Json(payload): Json<DeleteOne>,
-) -> Result<Json<Value>, RestError> {
-    log::info!("{{\"fn\": \"delete_many\", \"method\":\"post\"}}");
-    Ok(Json(json!(
-        state.db.delete_many(&db, &coll, payload).await?
-    )))
-}
-
-pub async fn delete_one(
-    Extension(state): Extension<State>,
-    Path((db, coll)): Path<(String, String)>,
-    Json(payload): Json<DeleteOne>,
-) -> Result<Json<Value>, RestError> {
-    log::info!("{{\"fn\": \"delete_one\", \"method\":\"post\"}}");
-    Ok(Json(json!(state.db.delete_one(&db, &coll, payload).await?)))
 }
 
 pub async fn update_one(
