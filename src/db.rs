@@ -22,9 +22,9 @@ use crate::find::handlers::{FindOne, Find};
 use crate::delete::structs::DeleteOne;
 use crate::insert::structs::{CustomInsertManyOptions, CustomInsertOneOptions};
 use crate::update::structs::Update;
+use crate::watch::structs::Watch;
 use crate::handlers::{
     Aggregate, Distinct, 
-    Watch,
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

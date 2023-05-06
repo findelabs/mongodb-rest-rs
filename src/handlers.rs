@@ -13,7 +13,7 @@ use bson::{doc};
 use clap::{crate_description, crate_name, crate_version};
 use futures::Stream;
 use mongodb::options::{
-    AggregateOptions, ChangeStreamOptions,
+    AggregateOptions, 
     DistinctOptions,
 };
 use serde::{Deserialize};
@@ -33,38 +33,9 @@ pub struct Distinct {
 }
 
 #[derive(Deserialize, Debug, Clone)]
-pub struct Watch {
-    pub pipeline: Vec<Document>,
-    pub options: Option<ChangeStreamOptions>,
-}
-
-#[derive(Deserialize, Debug, Clone)]
 pub struct Aggregate {
     pub pipeline: Vec<Document>,
     pub options: Option<AggregateOptions>,
-}
-
-pub async fn watch(
-    Extension(state): Extension<State>,
-    Path((db, coll)): Path<(String, String)>,
-    queries: Query<QueriesFormat>,
-    Json(payload): Json<Watch>,
-) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
-    log::info!("{{\"fn\": \"watch\", \"method\":\"post\"}}");
-    state.db.watch(&db, &coll, payload, queries).await
-}
-
-pub async fn watch_latest(
-    Extension(state): Extension<State>,
-    Path((db, coll)): Path<(String, String)>,
-    queries: Query<QueriesFormat>,
-) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
-    log::info!("{{\"fn\": \"watch\", \"method\":\"get\"}}");
-    let payload = Watch {
-        pipeline: vec![doc! {"$match":{}}],
-        options: None,
-    };
-    state.db.watch(&db, &coll, payload, queries).await
 }
 
 pub async fn aggregate(
