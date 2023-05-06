@@ -14,9 +14,9 @@ use clap::{crate_description, crate_name, crate_version};
 use core::time::Duration;
 use futures::Stream;
 use mongodb::options::{
-    Acknowledgment, AggregateOptions, ChangeStreamOptions, Collation, CollationAlternate,
-    CollationCaseFirst, CollationMaxVariable, CollationStrength, DeleteOptions, DistinctOptions,
-    InsertManyOptions, InsertOneOptions, TextIndexVersion,
+    Acknowledgment, AggregateOptions, ChangeStreamOptions,
+    DeleteOptions, DistinctOptions,
+    InsertManyOptions, InsertOneOptions, 
     UpdateModifications, UpdateOptions, WriteConcern,
 };
 use serde::{Deserialize};
@@ -25,7 +25,7 @@ use serde_json::Value;
 //use axum_macros::debug_handler;
 
 use crate::error::Error as RestError;
-use crate::queries::{ExplainFormat, QueriesFormat, QueriesDelete};
+use crate::queries::{ExplainFormat, QueriesFormat};
 use crate::State;
 
 #[derive(Deserialize, Debug, Clone)]
@@ -58,12 +58,6 @@ pub struct Watch {
 pub struct Aggregate {
     pub pipeline: Vec<Document>,
     pub options: Option<AggregateOptions>,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct Index {
-    pub keys: Document,
-    pub options: Option<IndexCreateOptions>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -138,33 +132,6 @@ impl From<CustomInsertOneOptions> for InsertOneOptions {
     }
 }
 
-#[derive(Deserialize, Debug, Clone)]
-pub struct IndexCreateOptions {
-    pub unique: Option<bool>,
-    pub name: Option<String>,
-    pub partial_filter_expression: Option<Document>,
-    pub sparse: Option<bool>,
-    pub expire_after: Option<u64>,
-    pub hidden: Option<bool>,
-    pub collation: Option<Collation>,
-    pub weights: Option<Document>,
-    pub default_language: Option<String>,
-    pub language_override: Option<String>,
-    pub text_index_version: Option<TextIndexVersion>,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct IndexCollation {
-    pub locale: Option<String>,
-    pub case_level: Option<bool>,
-    pub case_first: Option<CollationCaseFirst>,
-    pub strength: Option<CollationStrength>,
-    pub numeric_ordering: Option<bool>,
-    pub alternate: Option<CollationAlternate>,
-    pub max_variable: Option<CollationMaxVariable>,
-    pub backwards: Option<bool>,
-}
-
 pub async fn watch(
     Extension(state): Extension<State>,
     Path((db, coll)): Path<(String, String)>,
@@ -227,28 +194,6 @@ pub async fn aggregate_explain(
 
     Ok(Json(json!(
         state.db.run_command(&db, payload, false).await?
-    )))
-}
-
-pub async fn index_delete(
-    Extension(state): Extension<State>,
-    Path((db, coll)): Path<(String, String)>,
-    queries: Query<QueriesDelete>,
-) -> Result<Json<Value>, RestError> {
-    log::info!("{{\"fn\": \"index_create\", \"method\":\"post\"}}");
-    Ok(Json(json!(
-        state.db.index_delete(&db, &coll, &queries).await?
-    )))
-}
-
-pub async fn index_create(
-    Extension(state): Extension<State>,
-    Path((db, coll)): Path<(String, String)>,
-    Json(payload): Json<Index>,
-) -> Result<Json<Value>, RestError> {
-    log::info!("{{\"fn\": \"index_create\", \"method\":\"post\"}}");
-    Ok(Json(json!(
-        state.db.index_create(&db, &coll, payload).await?
     )))
 }
 
@@ -450,24 +395,6 @@ pub async fn coll_count(
     Ok(Json(json!(state.db.coll_count(&db, &coll).await?)))
 }
 
-pub async fn coll_indexes(
-    Extension(state): Extension<State>,
-    queries: Query<QueriesFormat>,
-    Path((db, coll)): Path<(String, String)>,
-) -> Result<Json<Value>, RestError> {
-    log::info!("{{\"fn\": \"coll_indexes\", \"method\":\"get\"}}");
-    Ok(Json(json!(
-        state.db.coll_indexes(&db, &coll, &queries).await?
-    )))
-}
-
-pub async fn coll_index_stats(
-    Extension(state): Extension<State>,
-    Path((db, coll)): Path<(String, String)>,
-) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
-    log::info!("{{\"fn\": \"coll_indexes\", \"method\":\"get\"}}");
-    state.db.coll_index_stats(&db, &coll).await
-}
 pub async fn health() -> Json<Value> {
     log::info!("{{\"fn\": \"health\", \"method\":\"get\"}}");
     Json(json!({ "msg": "Healthy"}))

@@ -17,10 +17,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::queries::{Formats, QueriesDelete, QueriesFormat};
+use crate::index::structs::Index;
 use crate::find::handlers::{FindOne, Find};
 use crate::handlers::{
     Aggregate, CustomInsertManyOptions, CustomInsertOneOptions, DeleteOne, Distinct, 
-    Index, UpdateOne, Watch,
+    UpdateOne, Watch,
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

@@ -21,17 +21,19 @@ mod state;
 mod roles;
 mod find;
 mod queries;
+mod index;
 
 use crate::metrics::{setup_metrics_recorder, track_metrics};
 use handlers::{
-    aggregate, aggregate_explain, coll_count, coll_index_stats, coll_indexes, coll_stats,
+    aggregate, aggregate_explain, coll_count, coll_stats,
     databases, db_colls, db_stats, delete_many, delete_one, distinct, 
-    handler_404, health, help, index_create,
-    index_delete, insert_many, insert_one, root, rs_conn, rs_log, rs_operations, rs_pool, rs_stats,
+    handler_404, health, help, 
+    insert_many, insert_one, root, rs_conn, rs_log, rs_operations, rs_pool, rs_stats,
     rs_status, rs_top, update_many, update_one, watch, watch_latest
 };
 use roles::handlers::{get_roles, create_role, drop_role, get_role};
 use find::handlers::{find_explain, find_latest_ten, find_latest_one, find, find_one};
+use index::handlers::{index_create, index_delete, indexes, index_stats};
 use state::State;
 
 #[derive(Parser, Debug, Clone)]
@@ -111,10 +113,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             post(find_one).get(find_latest_one),
         )
         .route("/db/:db/collection/:coll/_find/explain", post(find_explain))
-        .route("/db/:db/collection/:coll/_indexes", get(coll_indexes))
+        .route("/db/:db/collection/:coll/_indexes", get(indexes))
         .route("/db/:db/collection/:coll/_indexes", post(index_create))
         .route("/db/:db/collection/:coll/_indexes", delete(index_delete))
-        .route("/db/:db/collection/:coll/_indexes/stats", get(coll_index_stats))
+        .route("/db/:db/collection/:coll/_indexes/stats", get(index_stats))
         .route("/db/:db/collection/:coll/_insert", post(insert_one))
         .route("/db/:db/collection/:coll/_insert_many", post(insert_many))
         .route("/db/:db/collection/:coll/_update", post(update_many))
