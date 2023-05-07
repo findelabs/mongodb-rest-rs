@@ -23,7 +23,7 @@ use crate::delete::structs::DeleteOne;
 use crate::insert::structs::{CustomInsertManyOptions, CustomInsertOneOptions};
 use crate::update::structs::Update;
 use crate::watch::structs::Watch;
-use crate::handlers::{
+use crate::aggregate::structs::{
     Aggregate, 
 };
 
