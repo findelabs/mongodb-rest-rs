@@ -14,7 +14,7 @@ pub async fn health(Extension(state): Extension<State>) -> impl IntoResponse {
             "{\"message\": \"Unhealthy\"}",
         )
     } else {
-        (StatusCode::NOT_FOUND, "{\"message\": \"Healthy\"}")
+        (StatusCode::OK, "{\"message\": \"Healthy\"}")
     }
 }
 
