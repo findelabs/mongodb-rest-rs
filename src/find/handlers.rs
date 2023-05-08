@@ -15,7 +15,7 @@ use mongodb::options::{
 
 use crate::error::Error as RestError;
 use crate::queries::{ExplainFormat, QueriesFormat};
-use crate::find::structs::{FindOne, Find, Distinct};
+use crate::find::structs::{FindOne, Find, Distinct, FindRaw, Explain};
 use crate::State;
 
 pub async fn find_explain(
@@ -24,7 +24,6 @@ pub async fn find_explain(
     queries: Query<ExplainFormat>,
     Json(payload): Json<Find>,
 ) -> Result<Json<Value>, RestError> {
-    use crate::db::{FindRaw, Explain};
 
     log::info!("{{\"fn\": \"find_explain\", \"method\":\"post\"}}");
 

@@ -7,13 +7,13 @@ use bson::Bson;
 use futures::stream::StreamExt;
 use futures::Stream;
 use mongodb::bson::{doc, document::Document, to_bson, to_document};
-use mongodb::options::{Collation, IndexOptions};
+use mongodb::options::{IndexOptions};
 use mongodb::IndexModel;
 use mongodb::{
     options::ClientOptions, options::InsertManyOptions, options::InsertOneOptions,
     options::ListDatabasesOptions, Client,
 };
-use serde::{Deserialize, Serialize};
+use serde::{Serialize};
 use serde_json::{json, Value};
 
 use crate::queries::{Formats, QueriesDelete, QueriesFormat};
@@ -26,36 +26,6 @@ use crate::watch::structs::Watch;
 use crate::aggregate::structs::{
     Aggregate, 
 };
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Explain {
-    pub explain: Document,
-    pub verbosity: String,
-    pub comment: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct AggregateRaw {
-    pub aggregate: String,
-    pub pipeline: Vec<Document>,
-    pub cursor: Document,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct FindRaw {
-    pub find: String,
-    pub filter: Document,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sort: Option<Document>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub projection: Option<Document>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub limit: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub skip: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub collation: Option<Collation>,
-}
 
 #[derive(Clone, Debug)]
 pub struct DB {

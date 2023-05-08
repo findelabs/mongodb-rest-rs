@@ -11,7 +11,8 @@ use serde_json::{json, Value};
 
 use crate::error::Error as RestError;
 use crate::queries::{ExplainFormat, QueriesFormat};
-use crate::aggregate::structs::Aggregate;
+use crate::find::structs::Explain;
+use crate::aggregate::structs::{Aggregate, AggregateRaw};
 use crate::State;
 
 pub async fn aggregate(
@@ -30,8 +31,6 @@ pub async fn aggregate_explain(
     queries: Query<ExplainFormat>,
     Json(payload): Json<Aggregate>,
 ) -> Result<Json<Value>, RestError> {
-    use crate::db::AggregateRaw;
-    use crate::db::Explain;
 
     log::info!("{{\"fn\": \"aggregate_explain\", \"method\":\"post\"}}");
 

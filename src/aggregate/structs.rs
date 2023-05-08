@@ -1,5 +1,5 @@
 use bson::{Document, doc};
-use serde::{Deserialize};
+use serde::{Serialize, Deserialize};
 
 use mongodb::options::{
     AggregateOptions
@@ -9,4 +9,11 @@ use mongodb::options::{
 pub struct Aggregate {
     pub pipeline: Vec<Document>,
     pub options: Option<AggregateOptions>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AggregateRaw {
+    pub aggregate: String,
+    pub pipeline: Vec<Document>,
+    pub cursor: Document,
 }
