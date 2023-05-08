@@ -1,9 +1,7 @@
-use bson::{Bson};
-use serde::{Deserialize};
+use bson::Bson;
 use core::time::Duration;
-use mongodb::options::{
-    InsertManyOptions, InsertOneOptions, Acknowledgment, WriteConcern
-};
+use mongodb::options::{Acknowledgment, InsertManyOptions, InsertOneOptions, WriteConcern};
+use serde::Deserialize;
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]

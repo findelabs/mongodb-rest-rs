@@ -1,31 +1,29 @@
 use crate::error::Error as RestError;
-use core::time::Duration;
 use axum::body::Bytes;
 use axum::body::StreamBody;
 use axum::extract::Query;
 use bson::Bson;
+use core::time::Duration;
 use futures::stream::StreamExt;
 use futures::Stream;
 use mongodb::bson::{doc, document::Document, to_bson, to_document};
-use mongodb::options::{IndexOptions};
+use mongodb::options::IndexOptions;
 use mongodb::IndexModel;
 use mongodb::{
     options::ClientOptions, options::InsertManyOptions, options::InsertOneOptions,
     options::ListDatabasesOptions, Client,
 };
-use serde::{Serialize};
+use serde::Serialize;
 use serde_json::{json, Value};
 
-use crate::queries::{Formats, QueriesDelete, QueriesFormat};
-use crate::index::structs::Index;
-use crate::find::structs::{FindOne, Find, Distinct};
+use crate::aggregate::structs::Aggregate;
 use crate::delete::structs::DeleteOne;
+use crate::find::structs::{Distinct, Find, FindOne};
+use crate::index::structs::Index;
 use crate::insert::structs::{CustomInsertManyOptions, CustomInsertOneOptions};
+use crate::queries::{Formats, QueriesDelete, QueriesFormat};
 use crate::update::structs::Update;
 use crate::watch::structs::Watch;
-use crate::aggregate::structs::{
-    Aggregate, 
-};
 
 #[derive(Clone, Debug)]
 pub struct DB {
@@ -119,7 +117,6 @@ impl DB {
             }
         }
     }
-
 
     pub async fn watch(
         &self,
@@ -562,7 +559,12 @@ impl DB {
         Ok(result)
     }
 
-    pub async fn run_command<T: Serialize>(&self, db: &str, payload: T, makes_changes: bool) -> Result<Value> {
+    pub async fn run_command<T: Serialize>(
+        &self,
+        db: &str,
+        payload: T,
+        makes_changes: bool,
+    ) -> Result<Value> {
         if makes_changes && self.readonly {
             return Err(RestError::ReadOnly);
         }

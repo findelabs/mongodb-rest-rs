@@ -1,10 +1,9 @@
+use bson::{doc, Document};
 use mongodb::options::{
-    Collation, CollationAlternate,
-    CollationCaseFirst, CollationMaxVariable, CollationStrength,
+    Collation, CollationAlternate, CollationCaseFirst, CollationMaxVariable, CollationStrength,
     TextIndexVersion,
 };
-use bson::{Document, doc};
-use serde::{Deserialize};
+use serde::Deserialize;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Index {

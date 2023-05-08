@@ -2,18 +2,17 @@ use axum::{
     body::Bytes,
     body::StreamBody,
     extract::{Path, Query},
-    Extension,
-    Json,
+    Extension, Json,
 };
 use bson::doc;
 use futures::Stream;
-use serde_json::{json, Value};
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 
 use crate::error::Error as RestError;
-use crate::State;
 use crate::find::structs::Find;
 use crate::queries::QueriesFormat;
+use crate::State;
 
 #[derive(Deserialize)]
 pub struct QueriesName {
@@ -23,31 +22,31 @@ pub struct QueriesName {
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateRole {
-    #[serde(alias = "name")] 
+    #[serde(alias = "name")]
     pub create_role: String,
     pub privileges: Vec<Privileges>,
     pub roles: Vec<Roles>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub authentication_restrictions: Option<Vec<Restrictions>>
+    pub authentication_restrictions: Option<Vec<Restrictions>>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct Privileges {
     pub resource: String,
-    pub actions: Vec<String>
+    pub actions: Vec<String>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct Roles {
     pub role: String,
-    pub db: String
+    pub db: String,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Restrictions {
     pub client_source: Vec<String>,
-    pub server_address: Vec<String>
+    pub server_address: Vec<String>,
 }
 
 pub async fn get_roles(
@@ -58,7 +57,7 @@ pub async fn get_roles(
     log::info!("{{\"fn\": \"get_roles\", \"method\":\"get\"}}");
     let payload = Find {
         filter: doc! {},
-        options: None
+        options: None,
     };
 
     state.db.find(&db, &"system.roles", payload, queries).await
@@ -67,13 +66,11 @@ pub async fn get_roles(
 pub async fn create_role(
     Extension(state): Extension<State>,
     Path(db): Path<String>,
-//    queries: Query<CustomInsertOneOptions>,
+    //    queries: Query<CustomInsertOneOptions>,
     Json(payload): Json<CreateRole>,
 ) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"create_role\", \"method\":\"post\"}}");
-    Ok(Json(json!(
-        state.db.run_command(&db, payload, true).await?
-    )))
+    Ok(Json(json!(state.db.run_command(&db, payload, true).await?)))
 }
 
 pub async fn drop_role(
@@ -82,11 +79,9 @@ pub async fn drop_role(
 ) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"drop_role\", \"method\":\"post\"}}");
 
-    let payload = doc!{"dropRole": role};
+    let payload = doc! {"dropRole": role};
 
-    Ok(Json(json!(
-        state.db.run_command(&db, payload, true).await?
-    )))
+    Ok(Json(json!(state.db.run_command(&db, payload, true).await?)))
 }
 
 pub async fn get_role(
@@ -97,7 +92,7 @@ pub async fn get_role(
     log::info!("{{\"fn\": \"get_role\", \"method\":\"get\"}}");
     let payload = Find {
         filter: doc! {"role": &name},
-        options: None
+        options: None,
     };
 
     log::debug!("Searching for roles with {:?}", payload);

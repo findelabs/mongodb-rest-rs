@@ -1,9 +1,5 @@
-use axum::{
-    extract::{Path},
-    Extension,
-    Json,
-};
-use bson::{to_document, doc, to_bson};
+use axum::{extract::Path, Extension, Json};
+use bson::{doc, to_bson, to_document};
 use serde_json::{json, Value};
 
 use crate::error::Error as RestError;
@@ -34,7 +30,7 @@ pub async fn rs_operations(Extension(state): Extension<State>) -> Result<Json<Va
     let response = state.db.run_command(&"admin", payload, false).await?;
 
     log::debug!("Successfully got inprog");
-    let results = response 
+    let results = response
         .get("inprog")
         .expect("Missing inprog field")
         .as_array()
@@ -58,7 +54,7 @@ pub async fn rs_operations(Extension(state): Extension<State>) -> Result<Json<Va
 
 pub async fn rs_stats(Extension(state): Extension<State>) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"rs_stats\", \"method\":\"get\"}}");
-    let payload  = doc! { "serverStatus": 1};
+    let payload = doc! { "serverStatus": 1};
     Ok(Json(json!(
         state.db.run_command(&"admin", payload, false).await?
     )))
@@ -74,7 +70,7 @@ pub async fn rs_top(Extension(state): Extension<State>) -> Result<Json<Value>, R
 
 pub async fn rs_conn(Extension(state): Extension<State>) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"rs_conn\", \"method\":\"get\"}}");
-    let payload  = doc! { "connectionStatus": 1};
+    let payload = doc! { "connectionStatus": 1};
     Ok(Json(json!(
         state.db.run_command(&"admin", payload, false).await?
     )))
@@ -82,7 +78,7 @@ pub async fn rs_conn(Extension(state): Extension<State>) -> Result<Json<Value>, 
 
 pub async fn rs_pool(Extension(state): Extension<State>) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"rs_pool\", \"method\":\"get\"}}");
-    let payload  = doc! { "connPoolStats": 1};
+    let payload = doc! { "connPoolStats": 1};
     Ok(Json(json!(
         state.db.run_command(&"admin", payload, false).await?
     )))

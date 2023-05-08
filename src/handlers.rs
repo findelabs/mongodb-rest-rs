@@ -1,10 +1,4 @@
-use axum::{
-    extract::{OriginalUri},
-    http::StatusCode,
-    response::IntoResponse,
-    Extension,
-    Json,
-};
+use axum::{extract::OriginalUri, http::StatusCode, response::IntoResponse, Extension, Json};
 use clap::{crate_description, crate_name, crate_version};
 use serde_json::json;
 use serde_json::Value;
@@ -20,10 +14,7 @@ pub async fn health(Extension(state): Extension<State>) -> impl IntoResponse {
             "{\"message\": \"Unhealthy\"}",
         )
     } else {
-        (
-            StatusCode::NOT_FOUND,
-            "{\"message\": \"Healthy\"}",
-        )
+        (StatusCode::NOT_FOUND, "{\"message\": \"Healthy\"}")
     }
 }
 

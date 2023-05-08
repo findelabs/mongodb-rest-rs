@@ -1,15 +1,14 @@
 use axum::{
-    body::{StreamBody, Bytes},
+    body::{Bytes, StreamBody},
     extract::{Path, Query},
-    Extension,
-    Json,
+    Extension, Json,
 };
 use futures::Stream;
 use serde_json::{json, Value};
 
 use crate::error::Error as RestError;
-use crate::queries::{QueriesFormat, QueriesDelete};
-use crate::index::structs::{Index};
+use crate::index::structs::Index;
+use crate::queries::{QueriesDelete, QueriesFormat};
 use crate::State;
 
 pub async fn index_delete(

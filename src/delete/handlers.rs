@@ -1,12 +1,8 @@
-use axum::{
-    extract::{Path},
-    Extension,
-    Json,
-};
+use axum::{extract::Path, Extension, Json};
 use serde_json::{json, Value};
 
-use crate::error::Error as RestError;
 use crate::delete::structs::DeleteOne;
+use crate::error::Error as RestError;
 use crate::State;
 
 pub async fn delete_many(

@@ -1,13 +1,12 @@
 use axum::{
     extract::{Path, Query},
-    Extension,
-    Json,
+    Extension, Json,
 };
-use bson::{Bson};
+use bson::Bson;
 use serde_json::{json, Value};
 
 use crate::error::Error as RestError;
-use crate::insert::structs::{CustomInsertOneOptions, CustomInsertManyOptions};
+use crate::insert::structs::{CustomInsertManyOptions, CustomInsertOneOptions};
 use crate::State;
 
 pub async fn insert_many(

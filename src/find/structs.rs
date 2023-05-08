@@ -1,9 +1,7 @@
-use bson::{Document, doc};
-use serde::{Serialize, Deserialize};
+use bson::{doc, Document};
+use serde::{Deserialize, Serialize};
 
-use mongodb::options::{
-    FindOneOptions, FindOptions, DistinctOptions, Collation
-};
+use mongodb::options::{Collation, DistinctOptions, FindOneOptions, FindOptions};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Explain {

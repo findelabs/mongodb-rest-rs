@@ -1,9 +1,7 @@
-use bson::{Document, doc};
-use serde::{Serialize, Deserialize};
+use bson::{doc, Document};
+use serde::{Deserialize, Serialize};
 
-use mongodb::options::{
-    AggregateOptions
-};
+use mongodb::options::AggregateOptions;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Aggregate {

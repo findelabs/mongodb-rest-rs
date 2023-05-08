@@ -2,17 +2,16 @@ use axum::{
     body::Bytes,
     body::StreamBody,
     extract::{Path, Query},
-    Extension,
-    Json,
+    Extension, Json,
 };
-use bson::{to_document, doc};
+use bson::{doc, to_document};
 use futures::Stream;
 use serde_json::{json, Value};
 
-use crate::error::Error as RestError;
-use crate::queries::{ExplainFormat, QueriesFormat};
-use crate::find::structs::Explain;
 use crate::aggregate::structs::{Aggregate, AggregateRaw};
+use crate::error::Error as RestError;
+use crate::find::structs::Explain;
+use crate::queries::{ExplainFormat, QueriesFormat};
 use crate::State;
 
 pub async fn aggregate(
@@ -31,7 +30,6 @@ pub async fn aggregate_explain(
     queries: Query<ExplainFormat>,
     Json(payload): Json<Aggregate>,
 ) -> Result<Json<Value>, RestError> {
-
     log::info!("{{\"fn\": \"aggregate_explain\", \"method\":\"post\"}}");
 
     let aggregate_raw = AggregateRaw {
@@ -40,7 +38,7 @@ pub async fn aggregate_explain(
         cursor: doc! {},
     };
 
-   let payload = Explain {
+    let payload = Explain {
         explain: to_document(&aggregate_raw)?,
         verbosity: queries
             .verbosity
@@ -54,4 +52,3 @@ pub async fn aggregate_explain(
         state.db.run_command(&db, payload, false).await?
     )))
 }
-

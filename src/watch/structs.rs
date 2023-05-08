@@ -1,8 +1,6 @@
-use bson::{Document};
-use serde::{Deserialize};
-use mongodb::options::{
-    ChangeStreamOptions
-};
+use bson::Document;
+use mongodb::options::ChangeStreamOptions;
+use serde::Deserialize;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Watch {

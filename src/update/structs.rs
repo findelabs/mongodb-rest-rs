@@ -1,8 +1,6 @@
-use bson::{Document};
-use serde::{Deserialize};
-use mongodb::options::{
-    UpdateOptions, UpdateModifications
-};
+use bson::Document;
+use mongodb::options::{UpdateModifications, UpdateOptions};
+use serde::Deserialize;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Update {

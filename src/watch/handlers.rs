@@ -1,3 +1,7 @@
+use crate::error::Error as RestError;
+use crate::queries::QueriesFormat;
+use crate::watch::structs::Watch;
+use crate::State;
 use axum::{
     body::Bytes,
     body::StreamBody,
@@ -6,10 +10,6 @@ use axum::{
 };
 use bson::doc;
 use futures::Stream;
-use crate::watch::structs::Watch;
-use crate::queries::QueriesFormat;
-use crate::error::Error as RestError;
-use crate::State;
 
 pub async fn watch(
     Extension(state): Extension<State>,

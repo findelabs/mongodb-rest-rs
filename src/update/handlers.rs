@@ -1,12 +1,8 @@
-use axum::{
-    extract::{Path},
-    Extension,
-    Json,
-};
+use axum::{extract::Path, Extension, Json};
 use serde_json::{json, Value};
 
 use crate::error::Error as RestError;
-use crate::update::structs::{Update};
+use crate::update::structs::Update;
 use crate::State;
 
 pub async fn update_one(

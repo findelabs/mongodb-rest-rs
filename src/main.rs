@@ -13,37 +13,38 @@ use std::io::Write;
 use std::net::SocketAddr;
 use tower_http::trace::TraceLayer;
 
-mod db;
-mod error;
-mod handlers;
-mod metrics;
-mod state;
-mod roles;
-mod find;
-mod queries;
-mod index;
-mod delete;
-mod insert;
-mod update;
-mod watch;
 mod aggregate;
 mod database;
+mod db;
+mod delete;
+mod error;
+mod find;
+mod handlers;
+mod index;
+mod insert;
+mod metrics;
+mod queries;
+mod roles;
+mod state;
+mod update;
+mod watch;
 
 use crate::metrics::{setup_metrics_recorder, track_metrics};
-use handlers::{
-    root, handler_404, health, 
-};
+use handlers::{handler_404, health, root};
 
-use database::handlers::{databases, db_colls, db_stats,rs_conn, rs_log, rs_operations, rs_pool, rs_stats, rs_status, rs_top, coll_count, coll_stats};
-use roles::handlers::{get_roles, create_role, drop_role, get_role};
-use find::handlers::{find_explain, find_latest_ten, find_latest_one, find, find_one, distinct};
-use index::handlers::{index_create, index_delete, indexes, index_stats};
-use delete::handlers::{delete_one, delete_many};
-use insert::handlers::{insert_one, insert_many};
-use update::handlers::{update_one, update_many};
-use watch::handlers::{watch, watch_latest};
 use aggregate::handlers::{aggregate, aggregate_explain};
+use database::handlers::{
+    coll_count, coll_stats, databases, db_colls, db_stats, rs_conn, rs_log, rs_operations, rs_pool,
+    rs_stats, rs_status, rs_top,
+};
+use delete::handlers::{delete_many, delete_one};
+use find::handlers::{distinct, find, find_explain, find_latest_one, find_latest_ten, find_one};
+use index::handlers::{index_create, index_delete, index_stats, indexes};
+use insert::handlers::{insert_many, insert_one};
+use roles::handlers::{create_role, drop_role, get_role, get_roles};
 use state::State;
+use update::handlers::{update_many, update_one};
+use watch::handlers::{watch, watch_latest};
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -111,12 +112,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .route("/db/:db/_roles/:role", get(get_role).delete(drop_role))
         .route("/db/:db/collection/:coll", get(find_latest_ten))
         .route("/db/:db/collection/:coll/_aggregate", post(aggregate))
-        .route("/db/:db/collection/:coll/_aggregate/explain", post(aggregate_explain))
+        .route(
+            "/db/:db/collection/:coll/_aggregate/explain",
+            post(aggregate_explain),
+        )
         .route("/db/:db/collection/:coll/_count", get(coll_count))
         .route("/db/:db/collection/:coll/_delete_one", post(delete_one))
         .route("/db/:db/collection/:coll/_delete_many", post(delete_many))
         .route("/db/:db/collection/:coll/_distinct", post(distinct))
-        .route("/db/:db/collection/:coll/_find", post(find).get(find_latest_ten))
+        .route(
+            "/db/:db/collection/:coll/_find",
+            post(find).get(find_latest_ten),
+        )
         .route(
             "/db/:db/collection/:coll/_find_one",
             post(find_one).get(find_latest_one),
@@ -130,7 +137,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .route("/db/:db/collection/:coll/_insert_many", post(insert_many))
         .route("/db/:db/collection/:coll/_update", post(update_many))
         .route("/db/:db/collection/:coll/_update_one", post(update_one))
-        .route("/db/:db/collection/:coll/_watch", post(watch).get(watch_latest))
+        .route(
+            "/db/:db/collection/:coll/_watch",
+            post(watch).get(watch_latest),
+        )
         .route("/db/:db/collection/:coll/_stats", get(coll_stats))
         .route("/", get(root));
 

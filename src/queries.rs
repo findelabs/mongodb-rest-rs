@@ -51,4 +51,3 @@ pub struct QueriesFormat {
 pub struct QueriesDelete {
     pub name: String,
 }
-

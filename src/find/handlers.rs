@@ -2,20 +2,17 @@ use axum::{
     body::Bytes,
     body::StreamBody,
     extract::{Path, Query},
-    Extension,
-    Json,
+    Extension, Json,
 };
-use bson::{to_document, doc};
+use bson::{doc, to_document};
 use futures::Stream;
 use serde_json::{json, Value};
 
-use mongodb::options::{
-    FindOptions
-};
+use mongodb::options::FindOptions;
 
 use crate::error::Error as RestError;
+use crate::find::structs::{Distinct, Explain, Find, FindOne, FindRaw};
 use crate::queries::{ExplainFormat, QueriesFormat};
-use crate::find::structs::{FindOne, Find, Distinct, FindRaw, Explain};
 use crate::State;
 
 pub async fn find_explain(
@@ -24,7 +21,6 @@ pub async fn find_explain(
     queries: Query<ExplainFormat>,
     Json(payload): Json<Find>,
 ) -> Result<Json<Value>, RestError> {
-
     log::info!("{{\"fn\": \"find_explain\", \"method\":\"post\"}}");
 
     let find_raw = FindRaw {
