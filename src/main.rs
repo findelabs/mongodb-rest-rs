@@ -14,6 +14,7 @@ use std::net::SocketAddr;
 use tower_http::trace::TraceLayer;
 
 mod aggregate;
+mod auth;
 mod database;
 mod db;
 mod delete;
@@ -28,6 +29,8 @@ mod roles;
 mod state;
 mod update;
 mod watch;
+mod https;
+mod scopes;
 
 use crate::metrics::{setup_metrics_recorder, track_metrics};
 use handlers::{handler_404, health, root};
@@ -45,6 +48,7 @@ use roles::handlers::{create_role, drop_role, get_role, get_roles};
 use state::State;
 use update::handlers::{update_many, update_one};
 use watch::handlers::{watch, watch_latest};
+use auth::{AuthJwks, auth};
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -68,6 +72,18 @@ pub struct Args {
     /// Should connection be readonly?
     #[arg(short, long, env = "MONGODB_READONLY", default_value = "false")]
     readonly: bool,
+
+    /// Don't require login tokens
+    #[arg(short, long, env = "MONGODB_NOAUTH", default_value = "false", conflicts_with = "jwks")]
+    noauth: bool,
+
+    /// JWKS URL
+    #[arg(short, long, env = "MONGODB_JWKS_URL", required_unless_present = "noauth")]
+    jwks: Option<String>,
+
+    /// JWKS Audience
+    #[arg(short, long, env = "MONGODB_JWKS_AUDIENCE", required_unless_present = "noauth")]
+    audience: Option<String>,
 }
 
 #[tokio::main]
@@ -92,6 +108,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // Create state for axum
     let state = State::new(args.clone()).await?;
+
+    // Create JWKS auth state
+    let auth_jwks = AuthJwks::new(args.clone(), state.db.rs_set().await?)?;
+
+//    log::info!("{:?}", auth_jwks.keys().await?);
 
     // Create prometheus handle
     let recorder_handle = setup_metrics_recorder();
@@ -151,9 +172,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let app = Router::new()
         .merge(v1.clone())
-        .merge(standard)
         .nest("/api/beta", v1)
         .layer(TraceLayer::new_for_http())
+        .route_layer(middleware::from_fn_with_state(auth_jwks.clone(), auth))
+        .merge(standard)
         .route_layer(middleware::from_fn(track_metrics))
         .fallback(handler_404)
         .layer(DefaultBodyLimit::max(16777216))

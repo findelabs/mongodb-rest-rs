@@ -37,3 +37,7 @@ futures-util = "0.3"
 bson = "2"
 rust_tools = { git = "https://github.com/findelabs/rust-tools.git", branch = "master" }
 axum-macros = "0.3"
+http = "0.2"
+jsonwebtoken = "8"
+async-recursion = "1.0"
+

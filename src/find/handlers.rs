@@ -14,14 +14,19 @@ use crate::error::Error as RestError;
 use crate::find::structs::{Distinct, Explain, Find, FindOne, FindRaw};
 use crate::queries::{ExplainFormat, QueriesFormat};
 use crate::State;
+use crate::scopes::AuthorizeScope;
 
 pub async fn find_explain(
     Extension(state): Extension<State>,
+    Extension(scopes): Extension<AuthorizeScope>,
     Path((db, coll)): Path<(String, String)>,
     queries: Query<ExplainFormat>,
     Json(payload): Json<Find>,
 ) -> Result<Json<Value>, RestError> {
     log::info!("{{\"fn\": \"find_explain\", \"method\":\"post\"}}");
+
+    // Validate that the client has access to this database
+    scopes.read(&db)?;
 
     let find_raw = FindRaw {
         find: coll.to_string(),
@@ -55,10 +60,15 @@ pub async fn find_explain(
 }
 
 pub async fn find_latest_ten(
+    Extension(scopes): Extension<AuthorizeScope>,
     Extension(state): Extension<State>,
     Path((db, coll)): Path<(String, String)>,
     queries: Query<QueriesFormat>,
 ) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
+
+    // Validate that the client has access to this database
+    scopes.read(&db)?;
+
     log::info!("{{\"fn\": \"find\", \"method\":\"get\"}}");
     let payload = Find {
         filter: doc! {},
@@ -73,10 +83,15 @@ pub async fn find_latest_ten(
 }
 
 pub async fn find_latest_one(
+    Extension(scopes): Extension<AuthorizeScope>,
     Extension(state): Extension<State>,
     Path((db, coll)): Path<(String, String)>,
     queries: Query<QueriesFormat>,
 ) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
+
+    // Validate that the client has access to this database
+    scopes.read(&db)?;
+
     log::info!("{{\"fn\": \"find\", \"method\":\"get\"}}");
     let payload = Find {
         filter: doc! {},
@@ -91,21 +106,31 @@ pub async fn find_latest_one(
 }
 
 pub async fn find(
+    Extension(scopes): Extension<AuthorizeScope>,
     Extension(state): Extension<State>,
     Path((db, coll)): Path<(String, String)>,
     queries: Query<QueriesFormat>,
     Json(payload): Json<Find>,
 ) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
+
+    // Validate that the client has access to this database
+    scopes.read(&db)?;
+
     log::info!("{{\"fn\": \"find\", \"method\":\"post\"}}");
     state.db.find(&db, &coll, payload, queries).await
 }
 
 pub async fn find_one(
+    Extension(scopes): Extension<AuthorizeScope>,
     Extension(state): Extension<State>,
     Path((db, coll)): Path<(String, String)>,
     queries: Query<QueriesFormat>,
     Json(payload): Json<FindOne>,
 ) -> Result<Json<Value>, RestError> {
+
+    // Validate that the client has access to this database
+    scopes.read(&db)?;
+
     log::info!("{{\"fn\": \"find_one\", \"method\":\"post\"}}");
     Ok(Json(json!(
         state.db.find_one(&db, &coll, payload, &queries).await?
@@ -113,11 +138,16 @@ pub async fn find_one(
 }
 
 pub async fn distinct(
+    Extension(scopes): Extension<AuthorizeScope>,
     Extension(state): Extension<State>,
     Path((db, coll)): Path<(String, String)>,
     queries: Query<QueriesFormat>,
     Json(payload): Json<Distinct>,
 ) -> Result<Json<Value>, RestError> {
+
+    // Validate that the client has access to this database
+    scopes.read(&db)?;
+
     log::info!("{{\"fn\": \"distinct\", \"method\":\"post\"}}");
     Ok(Json(json!(
         state.db.distinct(&db, &coll, payload, &queries).await?

@@ -43,6 +43,23 @@ impl DB {
         })
     }
 
+    pub async fn rs_set(&self) -> Result<Option<String>> {
+        let payload = doc! { "isMaster": 1};
+    
+        let response = self.run_command(&"admin", payload, false).await?;
+    
+        let set = if let Some(set) = response.get("setName") {
+            set.as_str()
+        } else {
+            None
+        };
+
+        log::info!("Replicaset: {:?}", set);
+    
+        Ok(set.map(str::to_string))
+    
+    }
+
     pub async fn index_delete(
         &self,
         database: &str,
@@ -622,6 +639,7 @@ impl DB {
 
     pub async fn databases(&self) -> Result<Vec<String>> {
         log::debug!("Getting databases");
+
         let options = ListDatabasesOptions::builder()
             .authorized_databases(Some(false))
             .build();
