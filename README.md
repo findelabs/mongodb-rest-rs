@@ -14,11 +14,70 @@ Options:
   -U, --username <USERNAME>  MongoDB username [env: MONGODB_USERNAME=]
   -P, --password <PASSWORD>  MongoDB username password [env: MONGODB_PASSWORD=]
   -r, --readonly             Should connection be readonly? [env: MONGODB_READONLY=]
+  -n, --noauth               Don't require login tokens [env: MONGODB_NOAUTH=]
+  -j, --jwks <JWKS>          JWKS URL [env: MONGODB_JWKS_URL=]
+  -a, --audience <AUDIENCE>  JWKS Audience [env: MONGODB_JWKS_AUDIENCE=]
   -h, --help                 Print help
   -V, --version              Print version
 ```
 
+### Authentication
+
+This API can use any JWKS endpoint to authorize tokens, based on authorized scopes. Tokens will need to have an authorized cluster scope, as well as at least one role scope. Scope format is shown below:
+
+#### Cluster Access
+
+Format: `mongodb.cluster:{{ replicaset }}:allow`
+
+Examples:
+```
+mongodb.cluster.onprem-dev-cluster01:allow
+mongodb.cluster.atlas-11czv4-shard-0:allow
+```
+
+#### Admin Roles
+
+Format: `mongodb.role.admin:{{ role }}`  
+
+Roles in increasing order of access:  
+- clustermonitor  
+- readanydatabase  
+- readwriteanydatabase  
+- dbadminanydatabase  
+- clusteradmin  
+
+Examples:
+```
+mongodb.role.admin:clustermonitor
+mongodb.role.admin:readanydatabase
+mongodb.role.admin:readwriteanydatabase
+mongodb.role.admin:dbadminanydatabase
+mongodb.role.admin:clusteradmin
+```
+
+#### Database Specific Roles
+
+Format: `mongodb.role.{{ database }}:{{ role }}`  
+
+Roles in increasing order of access:  
+- read  
+- readwrite  
+- dbadmin  
+
+Examples:
+```
+mongodb.role.dds_posts:dbadmin
+mongodb.role.dds_posts:readwrite
+mongodb.role.dds_posts:read
+```
+
 ## API References
+
+### User
+```
+# Get user's token roles
+GET /user/roles
+```
 
 ### Replicaset
 ```
