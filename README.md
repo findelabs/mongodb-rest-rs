@@ -20,6 +20,12 @@ Options:
 
 ## API References
 
+### User
+```
+# Get user's token roles
+GET /user/roles
+```
+
 ### Replicaset
 ```
 # Get replicaset status
