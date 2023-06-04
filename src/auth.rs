@@ -1,19 +1,19 @@
+use crate::Args;
 use async_recursion::async_recursion;
 use axum::{
-  http::{Request, StatusCode},
-  response::Response,
-  middleware::Next, 
-  extract::State,
+    extract::State,
+    http::{Request, StatusCode},
+    middleware::Next,
+    response::Response,
 };
-use hyper::{Body, Uri};
 use chrono::Utc;
-use std::sync::{Arc, Mutex};
-use serde_json::Value;
-use crate::Args;
-use serde_json::json;
+use hyper::{Body, Uri};
 use jsonwebtoken::jwk::AlgorithmParameters;
 use jsonwebtoken::{decode, decode_header, jwk, DecodingKey, Validation};
+use serde_json::json;
+use serde_json::Value;
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 use crate::error::Error as RestError;
 use crate::https::HttpsClient;
@@ -25,7 +25,7 @@ type MyResult<T> = std::result::Result<T, RestError>;
 pub struct AuthJwks {
     replicaset: Option<String>,
     noauth: bool,
-    keys: JwksKeys
+    keys: JwksKeys,
 }
 
 #[derive(Clone)]
@@ -40,8 +40,12 @@ pub struct JwksKeys {
 impl AuthJwks {
     pub fn new(args: Args, set: Option<String>) -> MyResult<Self> {
         let jwks_keys = JwksKeys::new(args.clone())?;
-        
-        Ok(AuthJwks { noauth: args.noauth, keys: jwks_keys, replicaset: set })
+
+        Ok(AuthJwks {
+            noauth: args.noauth,
+            keys: jwks_keys,
+            replicaset: set,
+        })
     }
 
     #[allow(dead_code)]
@@ -57,18 +61,17 @@ impl AuthJwks {
 
 impl JwksKeys {
     pub fn new(args: Args) -> MyResult<Self> {
-        Ok(JwksKeys { 
+        Ok(JwksKeys {
             uri: args.jwks,
             audience: args.audience,
             jwks: Arc::new(Mutex::new(json!(null))),
             last_read: Arc::new(Mutex::new(0i64)),
-            client: HttpsClient::default()
+            client: HttpsClient::default(),
         })
     }
 
     #[async_recursion]
     pub async fn keys(&self) -> Result<jwk::JwkSet, RestError> {
-
         let jwks = self.jwks.lock().unwrap().clone();
         match jwks {
             Value::Null => {
@@ -78,9 +81,9 @@ impl JwksKeys {
             }
             _ => {
                 self.renew().await;
-                log::debug!("Returning known keys");
+                log::trace!("Returning known keys");
                 let j: jwk::JwkSet = serde_json::from_value(jwks)?;
-                log::debug!("keys: {:?}", j);
+                log::trace!("keys: {:?}", j);
                 Ok(j)
             }
         }
@@ -180,7 +183,7 @@ impl JwksKeys {
                     validation.validate_nbf = true;
                     validation.set_audience(&[&self.audience.clone().unwrap()]);
 
-                    log::debug!("Attempting to decode token");
+                    log::trace!("Attempting to decode token");
                     let decoded_token = match decode::<HashMap<String, serde_json::Value>>(
                         token[1],
                         &decoding_key,
@@ -196,13 +199,12 @@ impl JwksKeys {
 
                     let sub = match decoded_token.claims.get("sub") {
                         Some(s) => s.as_str().unwrap_or("none").to_string(),
-                        None => "none".to_owned()
+                        None => "none".to_owned(),
                     };
 
                     let scp = match decoded_token.claims.get("scp") {
                         Some(scopes) => {
-                            let vec_values =
-                                scopes.as_array().expect("Unable to convert to array");
+                            let vec_values = scopes.as_array().expect("Unable to convert to array");
                             let vec_string = vec_values
                                 .iter()
                                 .map(|s| s.to_string().replace('"', ""))
@@ -211,8 +213,8 @@ impl JwksKeys {
                         }
                         None => Vec::new(),
                     };
-                    log::debug!("token scopes: {:?}", scp);
-                    Ok((sub,scp))
+                    log::debug!("\"sub={}, scopes={:?}\"", sub, scp);
+                    Ok((sub, scp))
                 }
                 _ => Err(RestError::JwtDecode),
             }
@@ -221,16 +223,20 @@ impl JwksKeys {
             Err(RestError::JwtDecode)
         }
     }
-
 }
 
-pub async fn auth<B>(State(mut state): State<AuthJwks>, mut req: Request<B>, next: Next<B>) -> Result<Response, StatusCode> {
+pub async fn auth<B>(
+    State(mut state): State<AuthJwks>,
+    mut req: Request<B>,
+    next: Next<B>,
+) -> Result<Response, StatusCode> {
     if state.noauth {
         req.extensions_mut().insert(AuthorizeScope::default());
-        return Ok(next.run(req).await)
+        return Ok(next.run(req).await);
     }
 
-    let auth_header = req.headers()
+    let auth_header = req
+        .headers()
         .get(http::header::AUTHORIZATION)
         .and_then(|header| header.to_str().ok());
 
@@ -244,12 +250,10 @@ pub async fn auth<B>(State(mut state): State<AuthJwks>, mut req: Request<B>, nex
         Ok(i) => i,
         Err(e) => {
             log::debug!("Got error getting token: {}", e);
-            return Err(StatusCode::UNAUTHORIZED)
+            return Err(StatusCode::UNAUTHORIZED);
         }
     };
 
     req.extensions_mut().insert(scopes);
     Ok(next.run(req).await)
 }
-
-

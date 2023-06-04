@@ -7,8 +7,8 @@ use serde_json::{json, Value};
 
 use crate::error::Error as RestError;
 use crate::insert::structs::{CustomInsertManyOptions, CustomInsertOneOptions};
-use crate::State;
 use crate::scopes::AuthorizeScope;
+use crate::State;
 
 pub async fn insert_many(
     Extension(state): Extension<State>,
@@ -17,7 +17,6 @@ pub async fn insert_many(
     queries: Query<CustomInsertManyOptions>,
     Json(body): Json<Vec<Bson>>,
 ) -> Result<Json<Value>, RestError> {
-
     // Validate that the client has access to this database
     scopes.write(&db)?;
 
@@ -34,7 +33,6 @@ pub async fn insert_one(
     queries: Query<CustomInsertOneOptions>,
     Json(body): Json<Bson>,
 ) -> Result<Json<Value>, RestError> {
-
     // Validate that the client has access to this database
     scopes.write(&db)?;
 

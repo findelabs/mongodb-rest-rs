@@ -12,24 +12,33 @@ use crate::aggregate::structs::{Aggregate, AggregateRaw};
 use crate::error::Error as RestError;
 use crate::find::structs::Explain;
 use crate::queries::{ExplainFormat, QueriesFormat};
+use crate::scopes::AuthorizeScope;
 use crate::State;
 
 pub async fn aggregate(
     Extension(state): Extension<State>,
+    Extension(scopes): Extension<AuthorizeScope>,
     Path((db, coll)): Path<(String, String)>,
     queries: Query<QueriesFormat>,
     Json(payload): Json<Aggregate>,
 ) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
+    // Validate that the client has access to this database
+    scopes.write(&db)?;
+
     log::info!("{{\"fn\": \"aggregate\", \"method\":\"post\"}}");
     state.db.aggregate(&db, &coll, payload, queries).await
 }
 
 pub async fn aggregate_explain(
     Extension(state): Extension<State>,
+    Extension(scopes): Extension<AuthorizeScope>,
     Path((db, coll)): Path<(String, String)>,
     queries: Query<ExplainFormat>,
     Json(payload): Json<Aggregate>,
 ) -> Result<Json<Value>, RestError> {
+    // Validate that the client has access to this database
+    scopes.write(&db)?;
+
     log::info!("{{\"fn\": \"aggregate_explain\", \"method\":\"post\"}}");
 
     let aggregate_raw = AggregateRaw {

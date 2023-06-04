@@ -56,7 +56,7 @@ impl fmt::Display for Error {
             Error::InvalidUri(ref err) => write!(f, "{{\"error\": \"{}\"}}", err),
             Error::SerdeJson(ref err) => write!(f, "{{\"error\": \"{}\"}}", err),
             Error::Hyper(ref err) => write!(f, "{{\"error\": \"{}\"}}", err),
-            Error::UnauthorizedClient=> f.write_str("{\"error\": \"Unauthorized\"}"),
+            Error::UnauthorizedClient => f.write_str("{\"error\": \"Unauthorized\"}"),
             Error::JwtDecode => f.write_str("{\"error\": \"Unable to decode JWT\"}"),
             Error::Jwt(ref err) => write!(f, "{{\"error\": \"{}\"}}", err),
         }
@@ -69,7 +69,7 @@ impl IntoResponse for Error {
         let body = body::boxed(body::Full::from(payload));
 
         let status_code = match self {
-            Error::ReadOnly => StatusCode::FORBIDDEN,
+            Error::ReadOnly | Error::UnauthorizedClient => StatusCode::FORBIDDEN,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
@@ -130,4 +130,3 @@ impl From<jsonwebtoken::errors::Error> for Error {
         Error::Jwt(err)
     }
 }
-

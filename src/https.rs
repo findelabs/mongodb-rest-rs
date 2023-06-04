@@ -137,4 +137,3 @@ impl<'a> ClientBuilder<'a> {
         ))))
     }
 }
-

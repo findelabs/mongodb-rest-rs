@@ -21,24 +21,25 @@ mod delete;
 mod error;
 mod find;
 mod handlers;
+mod https;
 mod index;
 mod insert;
 mod metrics;
 mod queries;
 mod roles;
+mod scopes;
 mod state;
 mod update;
 mod watch;
-mod https;
-mod scopes;
 
 use crate::metrics::{setup_metrics_recorder, track_metrics};
 use handlers::{handler_404, health, root};
 
 use aggregate::handlers::{aggregate, aggregate_explain};
+use auth::{auth, AuthJwks};
 use database::handlers::{
     coll_count, coll_stats, databases, db_colls, db_stats, rs_conn, rs_log, rs_operations, rs_pool,
-    rs_stats, rs_status, rs_top,
+    rs_stats, rs_status, rs_top, token_roles,
 };
 use delete::handlers::{delete_many, delete_one};
 use find::handlers::{distinct, find, find_explain, find_latest_one, find_latest_ten, find_one};
@@ -48,7 +49,6 @@ use roles::handlers::{create_role, drop_role, get_role, get_roles};
 use state::State;
 use update::handlers::{update_many, update_one};
 use watch::handlers::{watch, watch_latest};
-use auth::{AuthJwks, auth};
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -74,15 +74,31 @@ pub struct Args {
     readonly: bool,
 
     /// Don't require login tokens
-    #[arg(short, long, env = "MONGODB_NOAUTH", default_value = "false", conflicts_with = "jwks")]
+    #[arg(
+        short,
+        long,
+        env = "MONGODB_NOAUTH",
+        default_value = "false",
+        conflicts_with = "jwks"
+    )]
     noauth: bool,
 
     /// JWKS URL
-    #[arg(short, long, env = "MONGODB_JWKS_URL", required_unless_present = "noauth")]
+    #[arg(
+        short,
+        long,
+        env = "MONGODB_JWKS_URL",
+        required_unless_present = "noauth"
+    )]
     jwks: Option<String>,
 
     /// JWKS Audience
-    #[arg(short, long, env = "MONGODB_JWKS_AUDIENCE", required_unless_present = "noauth")]
+    #[arg(
+        short,
+        long,
+        env = "MONGODB_JWKS_AUDIENCE",
+        required_unless_present = "noauth"
+    )]
     audience: Option<String>,
 }
 
@@ -112,7 +128,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Create JWKS auth state
     let auth_jwks = AuthJwks::new(args.clone(), state.db.rs_set().await?)?;
 
-//    log::info!("{:?}", auth_jwks.keys().await?);
+    //    log::info!("{:?}", auth_jwks.keys().await?);
 
     // Create prometheus handle
     let recorder_handle = setup_metrics_recorder();
@@ -126,6 +142,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .route("/rs/top", get(rs_top))
         .route("/rs/conn", get(rs_conn))
         .route("/rs/pool", get(rs_pool))
+        .route("/user/roles", get(token_roles))
         .route("/db/:db", get(db_colls))
         .route("/db/:db/_stats", get(db_stats))
         .route("/db/:db/_roles", get(get_roles))

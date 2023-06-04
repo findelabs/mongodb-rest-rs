@@ -12,6 +12,7 @@ use serde_json::{json, Value};
 use crate::error::Error as RestError;
 use crate::find::structs::Find;
 use crate::queries::QueriesFormat;
+use crate::scopes::AuthorizeScope;
 use crate::State;
 
 #[derive(Deserialize)]
@@ -51,9 +52,13 @@ pub struct Restrictions {
 
 pub async fn get_roles(
     Extension(state): Extension<State>,
+    Extension(scopes): Extension<AuthorizeScope>,
     Path(db): Path<String>,
     queries: Query<QueriesFormat>,
 ) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
+    // Validate that the client has access to this database
+    scopes.dbadmin(&db)?;
+
     log::info!("{{\"fn\": \"get_roles\", \"method\":\"get\"}}");
     let payload = Find {
         filter: doc! {},
@@ -65,18 +70,26 @@ pub async fn get_roles(
 
 pub async fn create_role(
     Extension(state): Extension<State>,
+    Extension(scopes): Extension<AuthorizeScope>,
     Path(db): Path<String>,
     //    queries: Query<CustomInsertOneOptions>,
     Json(payload): Json<CreateRole>,
 ) -> Result<Json<Value>, RestError> {
+    // Validate that the client has access to this database
+    scopes.dbadmin(&db)?;
+
     log::info!("{{\"fn\": \"create_role\", \"method\":\"post\"}}");
     Ok(Json(json!(state.db.run_command(&db, payload, true).await?)))
 }
 
 pub async fn drop_role(
     Extension(state): Extension<State>,
+    Extension(scopes): Extension<AuthorizeScope>,
     Path((db, role)): Path<(String, String)>,
 ) -> Result<Json<Value>, RestError> {
+    // Validate that the client has access to this database
+    scopes.dbadmin(&db)?;
+
     log::info!("{{\"fn\": \"drop_role\", \"method\":\"post\"}}");
 
     let payload = doc! {"dropRole": role};
@@ -86,9 +99,13 @@ pub async fn drop_role(
 
 pub async fn get_role(
     Extension(state): Extension<State>,
+    Extension(scopes): Extension<AuthorizeScope>,
     Path((db, name)): Path<(String, String)>,
     queries: Query<QueriesFormat>,
 ) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
+    // Validate that the client has access to this database
+    scopes.dbadmin(&db)?;
+
     log::info!("{{\"fn\": \"get_role\", \"method\":\"get\"}}");
     let payload = Find {
         filter: doc! {"role": &name},

@@ -3,11 +3,13 @@ use bson::{doc, to_bson, to_document};
 use serde_json::{json, Value};
 
 use crate::error::Error as RestError;
-use crate::State;
 use crate::scopes::AuthorizeScope;
+use crate::State;
 
-pub async fn rs_status(Extension(state): Extension<State>, Extension(scopes): Extension<AuthorizeScope>) -> Result<Json<Value>, RestError> {
-
+pub async fn rs_status(
+    Extension(state): Extension<State>,
+    Extension(scopes): Extension<AuthorizeScope>,
+) -> Result<Json<Value>, RestError> {
     // Validate that the client has access
     scopes.monitor(&"admin")?;
 
@@ -20,8 +22,10 @@ pub async fn rs_status(Extension(state): Extension<State>, Extension(scopes): Ex
     )))
 }
 
-pub async fn rs_log(Extension(state): Extension<State>, Extension(scopes): Extension<AuthorizeScope>) -> Result<Json<Value>, RestError> {
-
+pub async fn rs_log(
+    Extension(state): Extension<State>,
+    Extension(scopes): Extension<AuthorizeScope>,
+) -> Result<Json<Value>, RestError> {
     // Validate that the client has access
     scopes.monitor(&"admin")?;
 
@@ -33,8 +37,10 @@ pub async fn rs_log(Extension(state): Extension<State>, Extension(scopes): Exten
     )))
 }
 
-pub async fn rs_operations(Extension(state): Extension<State>, Extension(scopes): Extension<AuthorizeScope>) -> Result<Json<Value>, RestError> {
-
+pub async fn rs_operations(
+    Extension(state): Extension<State>,
+    Extension(scopes): Extension<AuthorizeScope>,
+) -> Result<Json<Value>, RestError> {
     // Validate that the client has access
     scopes.monitor(&"admin")?;
 
@@ -65,8 +71,10 @@ pub async fn rs_operations(Extension(state): Extension<State>, Extension(scopes)
     Ok(Json(output))
 }
 
-pub async fn rs_stats(Extension(state): Extension<State>, Extension(scopes): Extension<AuthorizeScope>) -> Result<Json<Value>, RestError> {
-
+pub async fn rs_stats(
+    Extension(state): Extension<State>,
+    Extension(scopes): Extension<AuthorizeScope>,
+) -> Result<Json<Value>, RestError> {
     // Validate that the client has access
     scopes.monitor(&"admin")?;
 
@@ -77,8 +85,10 @@ pub async fn rs_stats(Extension(state): Extension<State>, Extension(scopes): Ext
     )))
 }
 
-pub async fn rs_top(Extension(state): Extension<State>, Extension(scopes): Extension<AuthorizeScope>) -> Result<Json<Value>, RestError> {
-
+pub async fn rs_top(
+    Extension(state): Extension<State>,
+    Extension(scopes): Extension<AuthorizeScope>,
+) -> Result<Json<Value>, RestError> {
     // Validate that the client has access
     scopes.monitor(&"admin")?;
 
@@ -89,8 +99,10 @@ pub async fn rs_top(Extension(state): Extension<State>, Extension(scopes): Exten
     )))
 }
 
-pub async fn rs_conn(Extension(state): Extension<State>, Extension(scopes): Extension<AuthorizeScope>) -> Result<Json<Value>, RestError> {
-
+pub async fn rs_conn(
+    Extension(state): Extension<State>,
+    Extension(scopes): Extension<AuthorizeScope>,
+) -> Result<Json<Value>, RestError> {
     // Validate that the client has access
     scopes.monitor(&"admin")?;
 
@@ -101,8 +113,10 @@ pub async fn rs_conn(Extension(state): Extension<State>, Extension(scopes): Exte
     )))
 }
 
-pub async fn rs_pool(Extension(state): Extension<State>, Extension(scopes): Extension<AuthorizeScope>) -> Result<Json<Value>, RestError> {
-
+pub async fn rs_pool(
+    Extension(state): Extension<State>,
+    Extension(scopes): Extension<AuthorizeScope>,
+) -> Result<Json<Value>, RestError> {
     // Validate that the client has access
     scopes.monitor(&"admin")?;
 
@@ -118,7 +132,6 @@ pub async fn db_stats(
     Extension(scopes): Extension<AuthorizeScope>,
     Path(db): Path<String>,
 ) -> Result<Json<Value>, RestError> {
-
     // Validate that the client has access
     scopes.monitor(&db)?;
 
@@ -134,7 +147,6 @@ pub async fn coll_stats(
     Extension(scopes): Extension<AuthorizeScope>,
     Path((db, coll)): Path<(String, String)>,
 ) -> Result<Json<Value>, RestError> {
-
     // Validate that the client has access
     scopes.monitor(&db)?;
 
@@ -145,7 +157,10 @@ pub async fn coll_stats(
     )))
 }
 
-pub async fn databases(Extension(state): Extension<State>, Extension(scopes): Extension<AuthorizeScope>) -> Result<Json<Value>, RestError> {
+pub async fn databases(
+    Extension(state): Extension<State>,
+    Extension(scopes): Extension<AuthorizeScope>,
+) -> Result<Json<Value>, RestError> {
     // If we got this far, the user is at least authenticated to the cluster
     log::info!("{{\"fn\": \"databases\", \"method\":\"get\"}}");
 
@@ -162,7 +177,6 @@ pub async fn db_colls(
     Extension(scopes): Extension<AuthorizeScope>,
     Path(db): Path<String>,
 ) -> Result<Json<Value>, RestError> {
-
     // Validate that the client has access
     scopes.read(&db)?;
 
@@ -175,10 +189,16 @@ pub async fn coll_count(
     Extension(scopes): Extension<AuthorizeScope>,
     Path((db, coll)): Path<(String, String)>,
 ) -> Result<Json<Value>, RestError> {
-
     // Validate that the client has access
     scopes.read(&db)?;
 
     log::info!("{{\"fn\": \"coll_count\", \"method\":\"get\"}}");
     Ok(Json(json!(state.db.coll_count(&db, &coll).await?)))
+}
+
+pub async fn token_roles(
+    Extension(scopes): Extension<AuthorizeScope>,
+) -> Result<Json<Value>, RestError> {
+    log::info!("{{\"fn\": \"roles\", \"method\":\"get\"}}");
+    Ok(Json(json!(scopes.roles())))
 }
