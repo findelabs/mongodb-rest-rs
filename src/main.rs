@@ -73,6 +73,10 @@ pub struct Args {
     #[arg(short, long, env = "MONGODB_READONLY", default_value = "false")]
     readonly: bool,
 
+    /// Replicaset name override, useful for Atlas
+    #[arg(short, long, env = "MONGODB_REPLICASET")]
+    replicaset: Option<String>,
+
     /// Don't require login tokens
     #[arg(
         short,
@@ -126,9 +130,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let state = State::new(args.clone()).await?;
 
     // Create JWKS auth state
-    let auth_jwks = AuthJwks::new(args.clone(), state.db.rs_set().await?)?;
-
-    //    log::info!("{:?}", auth_jwks.keys().await?);
+    let replicaset = args.clone().replicaset.or(state.db.rs_set().await?);
+    let auth_jwks = AuthJwks::new(args.clone(), replicaset)?;
 
     // Create prometheus handle
     let recorder_handle = setup_metrics_recorder();

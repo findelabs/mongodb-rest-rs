@@ -2,7 +2,6 @@ use crate::error::Error as RestError;
 use axum::body::Bytes;
 use axum::body::StreamBody;
 use axum::extract::Query;
-use bson::Bson;
 use core::time::Duration;
 use futures::stream::StreamExt;
 use futures::Stream;
@@ -54,7 +53,7 @@ impl DB {
             None
         };
 
-        log::info!("Replicaset: {:?}", set);
+        log::debug!("Replicaset: {:?}", set);
 
         Ok(set.map(str::to_string))
     }
@@ -239,7 +238,7 @@ impl DB {
         &self,
         database: &str,
         collection: &str,
-        body: Vec<Bson>,
+        body: Vec<Value>,
         queries: Query<CustomInsertManyOptions>,
     ) -> Result<Value> {
         if self.readonly {
@@ -251,7 +250,7 @@ impl DB {
         let collection = self
             .client
             .database(database)
-            .collection::<Bson>(collection);
+            .collection::<Value>(collection);
 
         let options: InsertManyOptions = queries.0.into();
 
@@ -272,7 +271,7 @@ impl DB {
         &self,
         database: &str,
         collection: &str,
-        body: Bson,
+        body: Value,
         queries: Query<CustomInsertOneOptions>,
     ) -> Result<Value> {
         if self.readonly {
@@ -284,7 +283,7 @@ impl DB {
         let collection = self
             .client
             .database(database)
-            .collection::<Bson>(collection);
+            .collection::<Value>(collection);
 
         let options: InsertOneOptions = queries.0.into();
 

@@ -1304,7 +1304,7 @@ dependencies = [
 
 [[package]]
 name = "mongodb-rest-rs"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "async-recursion",
  "axum 0.6.18",
