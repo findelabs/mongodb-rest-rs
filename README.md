@@ -117,6 +117,21 @@ GET /:db
 # Get collection document count
 GET /:db/collection/:coll/_count
 
+# Get collection document count with filter
+POST /:db/collection/:coll/_count
+{ 
+  "filter": {},
+  "options": {
+    "hint": String,
+    "limit": u64,
+    "skip": u64,
+    "collation": Collation,
+    "selection_criteria": SelectionCriteria,
+    "read_concern": ReadConcern,
+    "comment": String
+  }
+}
+
 # Get collection indexes
 GET /:db/collection/:coll/_indexes[?simple]
 
