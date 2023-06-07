@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 use mongodb::options::FindOptions;
 
 use crate::error::Error as RestError;
-use crate::find::structs::{Distinct, Explain, Find, FindOne, FindRaw};
+use crate::find::structs::{Distinct, Explain, Find, FindOne, FindRaw, Count};
 use crate::queries::{ExplainFormat, QueriesFormat};
 use crate::scopes::AuthorizeScope;
 use crate::State;
@@ -115,6 +115,22 @@ pub async fn find(
 
     log::info!("{{\"fn\": \"find\", \"method\":\"post\"}}");
     state.db.find(&db, &coll, payload, queries).await
+}
+
+pub async fn count(
+    Extension(scopes): Extension<AuthorizeScope>,
+    Extension(state): Extension<State>,
+    Path((db, coll)): Path<(String, String)>,
+    Json(payload): Json<Count>,
+) -> Result<Json<Value>, RestError> {
+    // Validate that the client has access to this database
+    scopes.read(&db)?;
+
+    log::info!("{{\"fn\": \"find_one\", \"method\":\"post\"}}");
+    
+    Ok(Json(json!(
+        state.db.count(&db, &coll, payload).await?
+    )))
 }
 
 pub async fn find_one(

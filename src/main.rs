@@ -42,7 +42,7 @@ use database::handlers::{
     rs_stats, rs_status, rs_top, token_roles,
 };
 use delete::handlers::{delete_many, delete_one};
-use find::handlers::{distinct, find, find_explain, find_latest_one, find_latest_ten, find_one};
+use find::handlers::{distinct, find, find_explain, find_latest_one, find_latest_ten, find_one, count};
 use index::handlers::{index_create, index_delete, index_stats, indexes};
 use insert::handlers::{insert_many, insert_one};
 use roles::handlers::{create_role, drop_role, get_role, get_roles};
@@ -154,7 +154,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             "/db/:db/collection/:coll/_aggregate/explain",
             post(aggregate_explain),
         )
-        .route("/db/:db/collection/:coll/_count", get(coll_count))
+        .route("/db/:db/collection/:coll/_count", get(coll_count).post(count))
         .route("/db/:db/collection/:coll/_delete_one", post(delete_one))
         .route("/db/:db/collection/:coll/_delete_many", post(delete_many))
         .route("/db/:db/collection/:coll/_distinct", post(distinct))

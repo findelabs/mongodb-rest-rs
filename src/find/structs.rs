@@ -1,7 +1,7 @@
 use bson::{doc, Document};
 use serde::{Deserialize, Serialize};
 
-use mongodb::options::{Collation, DistinctOptions, FindOneOptions, FindOptions};
+use mongodb::options::{Collation, DistinctOptions, FindOneOptions, FindOptions, CountOptions};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Explain {
@@ -36,6 +36,12 @@ pub struct FindOne {
 pub struct Find {
     pub filter: Document,
     pub options: Option<FindOptions>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct Count {
+    pub filter: Document,
+    pub options: Option<CountOptions>,
 }
 
 #[derive(Deserialize, Debug, Clone)]

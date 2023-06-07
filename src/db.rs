@@ -18,7 +18,7 @@ use serde_json::{json, Value};
 
 use crate::aggregate::structs::Aggregate;
 use crate::delete::structs::DeleteOne;
-use crate::find::structs::{Distinct, Find, FindOne};
+use crate::find::structs::{Distinct, Find, FindOne, Count};
 use crate::index::structs::Index;
 use crate::insert::structs::{CustomInsertManyOptions, CustomInsertOneOptions};
 use crate::queries::{Formats, QueriesDelete, QueriesFormat};
@@ -516,6 +516,27 @@ impl DB {
                 Ok(collections)
             }
             Err(e) => return Err(e)?,
+        }
+    }
+
+    pub async fn count(&self, database: &str, collection: &str, payload: Count) -> Result<Value> {
+        log::debug!("Getting document count in {}", database);
+
+        let collection = self
+            .client
+            .database(&database)
+            .collection::<Document>(collection);
+
+        match collection.count_documents(payload.filter, payload.options).await {
+            Ok(count) => {
+                log::debug!("Successfully counted docs with filter in {}", database);
+                let result = json!({ "docs": count });
+                Ok(result)
+            }
+            Err(e) => {
+                log::error!("Got error {}", e);
+                return Err(e)?;
+            }
         }
     }
 
