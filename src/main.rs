@@ -12,6 +12,7 @@ use std::future::ready;
 use std::io::Write;
 use std::net::SocketAddr;
 use tower_http::trace::TraceLayer;
+use jemallocator::Jemalloc;
 
 mod aggregate;
 mod auth;
@@ -49,6 +50,10 @@ use roles::handlers::{create_role, drop_role, get_role, get_roles};
 use state::State;
 use update::handlers::{update_many, update_one};
 use watch::handlers::{watch, watch_latest};
+
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
