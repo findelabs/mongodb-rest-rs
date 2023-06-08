@@ -1,13 +1,20 @@
 use std::collections::HashMap;
+use chrono::offset::Utc;
+use chrono::{DateTime, TimeZone};
+use std::fmt;
+
+use crate::error::Error as RestError;
+use crate::auth::Claims;
 
 #[derive(Clone)]
 pub struct AuthorizeScope {
     noauth: bool,
     sub: String,
+    exp: DateTime<Utc>,
+    jti: String,
     roles: HashMap<String, Vec<String>>,
 }
 
-use crate::error::Error as RestError;
 
 // Roles in admin db
 const ADMIN_READ_ROLES: &'static [&'static str] = &[
@@ -27,11 +34,24 @@ const DB_WRITE_ROLES: &'static [&'static str] = &["readwrite", "dbadmin"];
 const DB_DBADMIN_ROLES: &'static [&'static str] = &["dbadmin"];
 const DB_MONITOR_ROLES: &'static [&'static str] = &["read", "readwrite", "dbadmin"];
 
+impl fmt::Display for AuthorizeScope {
+    // This trait requires `fmt` with this exact signature.
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let roles: Vec<String> = self.roles.iter().map(|(k,v)| {
+            format!("{}:{}", k, v.join(":"))
+        }).collect(); 
+        write!(f, "sub={}, jti={}, exp={}, roles={}", self.sub, self.jti, self.exp, roles.join(","))
+    }
+}
+
+
 impl AuthorizeScope {
     pub fn default() -> Self {
         AuthorizeScope {
             noauth: true,
             sub: "noauth".to_string(),
+            exp: Utc::now(),
+            jti: String::new(),
             roles: HashMap::new(),
         }
     }
@@ -50,14 +70,13 @@ impl AuthorizeScope {
     }
 
     pub fn new(
-        cluster: Option<String>,
-        scopes: Vec<String>,
-        subject: String,
+        cluster: Option<Vec<String>>,
+        claims: Claims,
     ) -> Result<Self, RestError> {
         let replicaset = match cluster {
             Some(c) => c,
             None => {
-                log::warn!("\"sub={}, Did not detect replicaset name\"", subject);
+                log::warn!("\"sub={}, Did not detect replicaset name\"", claims.sub);
                 return Err(RestError::UnauthorizedClient);
             }
         };
@@ -65,8 +84,8 @@ impl AuthorizeScope {
         let mut clusters: Vec<String> = Vec::new();
         let mut map: HashMap<String, Vec<String>> = HashMap::new();
 
-        for scope in scopes {
-            log::debug!("\"sub={}, Extracting scope {}", subject, scope);
+        for scope in claims.scp {
+            log::debug!("\"sub={}, Extracting scope {}", claims.sub, scope);
 
             let colon_split: Vec<&str> = scope.split(':').collect();
             let action = match colon_split.get(1) {
@@ -83,7 +102,7 @@ impl AuthorizeScope {
                     if i != &"mongodb" {
                         log::debug!(
                             "\"sub={}, Scope technology does not equal mongodb, skipping",
-                            subject
+                            claims.sub
                         );
                         continue;
                     } else {
@@ -110,14 +129,14 @@ impl AuthorizeScope {
                     Some(v) => {
                         log::debug!(
                             "\"sub={}, Appending role {} role {}\"",
-                            subject,
+                            claims.sub,
                             action,
                             value
                         );
                         v.push(action);
                     }
                     None => {
-                        log::debug!("\"sub={}, Adding role {} for {}\"", subject, action, value);
+                        log::debug!("\"sub={}, Adding role {} for {}\"", claims.sub, action, value);
                         let mut vec = Vec::new();
                         vec.push(action);
                         map.insert(value, vec);
@@ -127,7 +146,7 @@ impl AuthorizeScope {
                 if !clusters.contains(&value) {
                     log::debug!(
                         "\"sub={}, Adding cluster access for replicaset {}\"",
-                        subject,
+                        claims.sub,
                         value
                     );
                     clusters.push(value)
@@ -136,19 +155,28 @@ impl AuthorizeScope {
         }
 
         // Ensure that client has access to current cluster
-        if !clusters.contains(&replicaset) {
-            log::warn!(
-                "\"sub={}, Did not find {} in authorized clusters\"",
-                subject,
-                replicaset
-            );
-            return Err(RestError::UnauthorizedClient);
-        }
+        let mut intersection = Vec::new();
+        for cluster in clusters {
+            if replicaset.contains(&cluster) {
+                log::debug!("\"sub={}, Found replicaset intersection for {}\"", claims.sub, cluster);
+                intersection.push(cluster);
+            }
+        };
 
-        log::debug!("\"sub={}, Scope map: {:?}\"", subject, map);
+        if intersection.len() == 0 {
+            log::warn!(
+                "\"sub={}, Did not find authorized replicaset\"",
+                claims.sub,
+                );
+                return Err(RestError::UnauthorizedClient);
+        };
+
+        log::debug!("\"sub={}, Scope map: {:?}\"", claims.sub, map);
         Ok(AuthorizeScope {
             noauth: false,
-            sub: subject,
+            sub: claims.sub,
+            jti: claims.jti,
+            exp: Utc.timestamp(claims.exp, 0),
             roles: map,
         })
     }

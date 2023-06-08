@@ -10,9 +10,8 @@ use chrono::Utc;
 use hyper::{Body, Uri};
 use jsonwebtoken::jwk::AlgorithmParameters;
 use jsonwebtoken::{decode, decode_header, jwk, DecodingKey, Validation};
-use serde_json::json;
-use serde_json::Value;
-use std::collections::HashMap;
+use serde_json::{Value, json};
+use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 
 use crate::error::Error as RestError;
@@ -23,7 +22,7 @@ type MyResult<T> = std::result::Result<T, RestError>;
 
 #[derive(Clone)]
 pub struct AuthJwks {
-    replicaset: Option<String>,
+    replicaset: Option<Vec<String>>,
     noauth: bool,
     keys: JwksKeys,
 }
@@ -37,14 +36,42 @@ pub struct JwksKeys {
     client: HttpsClient,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Claims {
+    pub sub: String,
+    pub exp: i64,
+    pub aud: String,
+    pub iss: String,
+    pub jti: String,
+    pub scp: Vec<String> 
+}
+
 impl AuthJwks {
     pub fn new(args: Args, set: Option<String>) -> MyResult<Self> {
         let jwks_keys = JwksKeys::new(args.clone())?;
 
+        // Create array of replicasets. One for override, the other for the native replicaset name.
+        let mut replicaset = Vec::new();
+
+        if let Some(replicaset_override) = args.replicaset {
+            replicaset.push(replicaset_override)
+        };
+
+        if let Some(name) = set {
+            replicaset.push(name)
+        };
+
+        let replicaset_switch = if replicaset.len() > 0 {
+            log::debug!("Using replicaset names of {:?}", replicaset);
+            Some(replicaset)
+        } else {
+            None
+        };
+
         Ok(AuthJwks {
             noauth: args.noauth,
             keys: jwks_keys,
-            replicaset: set,
+            replicaset: replicaset_switch,
         })
     }
 
@@ -54,8 +81,8 @@ impl AuthJwks {
     }
 
     pub async fn scopes(&mut self, token: &str) -> Result<AuthorizeScope, RestError> {
-        let (subject, scopes) = self.keys.scopes(token).await?;
-        AuthorizeScope::new(self.replicaset.clone(), scopes, subject)
+        let claims = self.keys.scopes(token).await?;
+        AuthorizeScope::new(self.replicaset.clone(), claims)
     }
 }
 
@@ -75,7 +102,7 @@ impl JwksKeys {
         let jwks = self.jwks.lock().unwrap().clone();
         match jwks {
             Value::Null => {
-                log::debug!("Getting keys");
+                log::debug!("Getting keys from {}", self.uri.as_ref().unwrap());
                 self.get_keys().await?;
                 self.keys().await
             }
@@ -151,7 +178,7 @@ impl JwksKeys {
         }
     }
 
-    pub async fn scopes(&self, header: &str) -> Result<(String, Vec<String>), RestError> {
+    pub async fn scopes(&self, header: &str) -> Result<Claims, RestError> {
         self.renew().await;
 
         let token: Vec<&str> = header.split(' ').collect();
@@ -184,7 +211,7 @@ impl JwksKeys {
                     validation.set_audience(&[&self.audience.clone().unwrap()]);
 
                     log::trace!("Attempting to decode token");
-                    let decoded_token = match decode::<HashMap<String, serde_json::Value>>(
+                    let decoded_token = match decode::<Claims>(
                         token[1],
                         &decoding_key,
                         &validation,
@@ -197,24 +224,8 @@ impl JwksKeys {
                     }?;
                     log::trace!("decoded token: {:?}", decoded_token);
 
-                    let sub = match decoded_token.claims.get("sub") {
-                        Some(s) => s.as_str().unwrap_or("none").to_string(),
-                        None => "none".to_owned(),
-                    };
-
-                    let scp = match decoded_token.claims.get("scp") {
-                        Some(scopes) => {
-                            let vec_values = scopes.as_array().expect("Unable to convert to array");
-                            let vec_string = vec_values
-                                .iter()
-                                .map(|s| s.to_string().replace('"', ""))
-                                .collect();
-                            vec_string
-                        }
-                        None => Vec::new(),
-                    };
-                    log::debug!("\"sub={}, scopes={:?}\"", sub, scp);
-                    Ok((sub, scp))
+                    log::debug!("\"sub={}, exp={}, scopes={:?}\"", decoded_token.claims.sub, decoded_token.claims.exp, decoded_token.claims.scp);
+                    Ok(decoded_token.claims)
                 }
                 _ => Err(RestError::JwtDecode),
             }
@@ -247,7 +258,10 @@ pub async fn auth<B>(
     };
 
     let scopes = match state.scopes(auth_header).await {
-        Ok(i) => i,
+        Ok(i) => {
+            log::info!("\"type=login, state=accepted, {}\"", i);
+            i
+        },
         Err(e) => {
             log::debug!("Got error getting token: {}", e);
             return Err(StatusCode::UNAUTHORIZED);

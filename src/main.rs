@@ -135,8 +135,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let state = State::new(args.clone()).await?;
 
     // Create JWKS auth state
-    let replicaset = args.clone().replicaset.or(state.db.rs_set().await?);
-    let auth_jwks = AuthJwks::new(args.clone(), replicaset)?;
+//    let replicaset = args.clone().replicaset.or(state.db.rs_set().await?);
+    let auth_jwks = AuthJwks::new(args.clone(), state.db.rs_set().await?)?;
 
     // Create prometheus handle
     let recorder_handle = setup_metrics_recorder();
