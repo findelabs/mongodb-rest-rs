@@ -142,7 +142,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     let tracer = new_pipeline()
         .with_service_name("mongodb-rest-rs")
         .with_api_version(ApiVersion::Version05)
-        .with_agent_endpoint("http://localhost:4318")
         .with_trace_config(
             trace::config()
                 .with_sampler(Sampler::AlwaysOn)
