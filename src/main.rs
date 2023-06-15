@@ -116,6 +116,15 @@ pub struct Args {
         required_unless_present = "noauth"
     )]
     audience: Option<String>,
+
+    /// Datadog APM IP
+    #[arg(
+        short,
+        long,
+        default_value = "localhost",
+        env = "DATADOG_APM_IP"
+    )]
+    datadog_apm_ip: String,
 }
 
 #[tokio::main]
@@ -142,6 +151,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     let tracer = new_pipeline()
         .with_service_name("mongodb-rest-rs")
         .with_api_version(ApiVersion::Version05)
+        .with_agent_endpoint(format!("http://{}:8126", args.datadog_apm_ip))
         .with_trace_config(
             trace::config()
                 .with_sampler(Sampler::AlwaysOn)
