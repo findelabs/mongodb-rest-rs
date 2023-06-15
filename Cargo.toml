@@ -40,6 +40,8 @@ axum-macros = "0.3"
 http = "0.2"
 jsonwebtoken = "8"
 async-recursion = "1.0"
+opentelemetry-datadog =  { version ="0.7", features = ["reqwest-client"] }
+opentelemetry = { version = "0.19", features = ["rt-tokio"] }
 
 [target.'cfg(not(target_env = "msvc"))'.dependencies]
 jemallocator = "0.5"

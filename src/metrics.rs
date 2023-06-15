@@ -2,7 +2,10 @@ use axum::{http::Request, middleware::Next, response::IntoResponse};
 use core::time::Duration;
 use metrics_exporter_prometheus::{Matcher, PrometheusBuilder, PrometheusHandle};
 use metrics_util::MetricKindMask;
-use std::time::Instant;
+
+use opentelemetry::{Key, global};
+use opentelemetry::trace::{Span, Tracer};
+
 
 pub fn setup_metrics_recorder() -> PrometheusHandle {
     const EXPONENTIAL_SECONDS: &[f64] = &[
@@ -24,21 +27,19 @@ pub fn setup_metrics_recorder() -> PrometheusHandle {
 }
 
 pub async fn track_metrics<B>(req: Request<B>, next: Next<B>) -> impl IntoResponse {
-    let start = Instant::now();
+    let tracer = global::tracer("request");
+    let mut span = tracer.start("start");
+
     let path = req.uri().path().to_owned();
     let method = req.method().clone();
+    span.set_attribute(Key::new("req.method").string(method.to_string()));
+    span.set_attribute(Key::new("req.path").string(path));
+
     let response = next.run(req).await;
-    let latency = start.elapsed().as_secs_f64();
     let status = response.status().as_u16().to_string();
+    span.set_attribute(Key::new("req.status").string(status));
 
-    let labels = [
-        ("method", method.to_string()),
-        ("path", path),
-        ("status", status),
-    ];
-
-    metrics::increment_counter!("http_requests_total", &labels);
-    metrics::histogram!("http_requests_duration_seconds", latency, &labels);
+    span.end();
 
     response
 }

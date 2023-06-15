@@ -14,6 +14,13 @@ use std::net::SocketAddr;
 use tower_http::trace::TraceLayer;
 use jemallocator::Jemalloc;
 
+use opentelemetry::trace::Tracer;
+use opentelemetry::global::shutdown_tracer_provider;
+use opentelemetry::sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
+use opentelemetry_datadog::{new_pipeline, ApiVersion, Error};
+
+use crate::error::Error as RestError;
+
 mod aggregate;
 mod auth;
 mod database;
@@ -112,7 +119,7 @@ pub struct Args {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let args = Args::parse();
 
     // Initialize log Builder
@@ -130,6 +137,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .filter_level(LevelFilter::Info)
         .parse_default_env()
         .init();
+
+    // Create opentelemetry
+    let tracer = new_pipeline()
+        .with_service_name("mongodb-rest-rs")
+        .with_api_version(ApiVersion::Version05)
+        .with_agent_endpoint("http://localhost:4318")
+        .with_trace_config(
+            trace::config()
+                .with_sampler(Sampler::AlwaysOn)
+                .with_id_generator(RandomIdGenerator::default())
+        )
+        .install_batch(opentelemetry::runtime::Tokio)?;
 
     // Create state for axum
     let state = State::new(args.clone()).await?;
@@ -208,9 +227,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let addr = SocketAddr::from(([0, 0, 0, 0], args.port as u16));
     log::info!("Listening on {}", addr);
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await?;
+
+    tracer.in_span("axum_server", |_cx| async {
+        // Traced app logic here...
+        axum::Server::bind(&addr)
+            .serve(app.into_make_service())
+            .await?;
+        Ok::<(), RestError>(())
+    }).await?;
+
+    shutdown_tracer_provider();
+
 
     Ok(())
 }
