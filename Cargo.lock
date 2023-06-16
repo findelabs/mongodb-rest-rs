@@ -1382,6 +1382,7 @@ dependencies = [
  "native-tls",
  "opentelemetry",
  "opentelemetry-datadog",
+ "opentelemetry_api",
  "reqwest",
  "rust_tools",
  "serde",
