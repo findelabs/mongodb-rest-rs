@@ -122,6 +122,15 @@ pub struct Args {
         env = "DATADOG_APM_IP"
     )]
     datadog_apm_ip: String,
+
+    /// Datadog APM Service Name
+    #[arg(
+        short,
+        long,
+        default_value = "mongodb-rest-rs",
+        env = "DATADOG_APM_SERVICE_NAME"
+    )]
+    datadog_apm_service_name: String,
 }
 
 #[tokio::main]
@@ -146,7 +155,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
 
     // Create opentelemetry
     let _tracer = new_pipeline()
-        .with_service_name("mongodb-rest-rs")
+        .with_service_name(args.datadog_apm_service_name.clone())
         .with_api_version(ApiVersion::Version05)
         .with_agent_endpoint(format!("http://{}:8126", args.datadog_apm_ip))
         .with_trace_config(

@@ -32,12 +32,13 @@ pub async fn track_metrics<B>(req: Request<B>, next: Next<B>) -> impl IntoRespon
     let path = req.uri().path().to_owned();
     let method = req.method().clone();
     let mut span = tracer.start(format!("{} {}", method.to_string(), path));
-    span.set_attribute(Key::new("req.method").string(method.to_string()));
-    span.set_attribute(Key::new("req.path").string(path));
+    span.set_attribute(Key::new("span.kind").string("server"));
+    span.set_attribute(Key::new("http.method").string(method.to_string()));
+    span.set_attribute(Key::new("http.path").string(path));
 
     let response = next.run(req).await;
     let status = response.status().as_u16().to_string();
-    span.set_attribute(Key::new("req.status").string(status));
+    span.set_attribute(Key::new("http.status_code").string(status));
 
     span.end();
     response
