@@ -36,18 +36,18 @@ impl Default for ExplainFormat {
     }
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Deserialize, Debug)]
 pub struct ExplainFormat {
     pub format: Option<Formats>,
     pub verbosity: Option<String>,
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Deserialize, Debug)]
 pub struct QueriesFormat {
     pub format: Option<Formats>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct QueriesDelete {
     pub name: String,
 }

@@ -17,6 +17,7 @@ use serde_json::{json, Value};
 use opentelemetry::{Key, global};
 use opentelemetry::trace::{Span, Tracer};
 use opentelemetry_api::{trace::{self, TracerProvider}};
+use tracing::instrument;
 
 use crate::aggregate::structs::Aggregate;
 use crate::delete::structs::DeleteOne;
@@ -45,7 +46,9 @@ impl DB {
         })
     }
 
+    #[instrument]
     pub async fn rs_set(&self) -> Result<Option<String>> {
+
         let payload = doc! { "isMaster": 1};
 
         let response = self.run_command(&"admin", payload, false).await?;
@@ -61,6 +64,7 @@ impl DB {
         Ok(set.map(str::to_string))
     }
 
+    #[instrument]
     pub async fn index_delete(
         &self,
         database: &str,
@@ -91,6 +95,7 @@ impl DB {
         }
     }
 
+    #[instrument]
     pub async fn index_create(
         &self,
         database: &str,
@@ -136,6 +141,7 @@ impl DB {
         }
     }
 
+    #[instrument]
     pub async fn watch(
         &self,
         database: &str,
@@ -172,6 +178,7 @@ impl DB {
         })))
     }
 
+    #[instrument]
     pub async fn aggregate(
         &self,
         database: &str,
@@ -204,6 +211,7 @@ impl DB {
         Ok(StreamBody::new(stream))
     }
 
+    #[instrument]
     pub async fn find(
         &self,
         database: &str,
@@ -211,10 +219,10 @@ impl DB {
         payload: Find,
         queries: Query<QueriesFormat>,
     ) -> Result<StreamBody<impl Stream<Item = Result<Bytes>>>> {
-        trace::get_active_span(|span| {
-            span.set_attribute(Key::new("command.type").string("find"));
-            span.set_attribute(Key::new("command.filter").string(payload.filter.to_string()));
-        });
+//        trace::get_active_span(|span| {
+//            span.set_attribute(Key::new("command.type").string("find"));
+//            span.set_attribute(Key::new("command.filter").string(payload.filter.to_string()));
+//        });
 
         // Log which collection this is going into
         log::debug!("Searching {}.{}", database, collection);
@@ -242,6 +250,7 @@ impl DB {
         Ok(StreamBody::new(stream))
     }
 
+    #[instrument]
     pub async fn insert_many(
         &self,
         database: &str,
@@ -275,6 +284,7 @@ impl DB {
         }
     }
 
+    #[instrument]
     pub async fn insert_one(
         &self,
         database: &str,
@@ -308,6 +318,7 @@ impl DB {
         }
     }
 
+    #[instrument]
     pub async fn delete_many(
         &self,
         database: &str,
@@ -341,6 +352,7 @@ impl DB {
         }
     }
 
+    #[instrument]
     pub async fn delete_one(
         &self,
         database: &str,
@@ -371,6 +383,7 @@ impl DB {
         }
     }
 
+    #[instrument]
     pub async fn update_one(
         &self,
         database: &str,
@@ -404,6 +417,7 @@ impl DB {
         }
     }
 
+    #[instrument]
     pub async fn update_many(
         &self,
         database: &str,
@@ -437,6 +451,7 @@ impl DB {
         }
     }
 
+    #[instrument]
     pub async fn distinct(
         &self,
         database: &str,
@@ -473,6 +488,8 @@ impl DB {
             }
         }
     }
+
+    #[instrument]
     pub async fn find_one(
         &self,
         database: &str,
@@ -509,6 +526,7 @@ impl DB {
         }
     }
 
+    #[instrument]
     pub async fn collections(&self, database: &str) -> Result<Vec<String>> {
         log::debug!("Getting collections in {}", database);
 
@@ -526,6 +544,7 @@ impl DB {
         }
     }
 
+    #[instrument]
     pub async fn count(&self, database: &str, collection: &str, payload: Count) -> Result<Value> {
         log::debug!("Getting document count in {}", database);
 
@@ -547,6 +566,7 @@ impl DB {
         }
     }
 
+    #[instrument]
     pub async fn coll_count(&self, database: &str, collection: &str) -> Result<Value> {
         log::debug!("Getting document count in {}", database);
 
@@ -568,6 +588,7 @@ impl DB {
         }
     }
 
+    #[instrument]
     pub async fn coll_indexes(
         &self,
         database: &str,
@@ -603,7 +624,8 @@ impl DB {
         Ok(result)
     }
 
-    pub async fn run_command<T: Serialize>(
+    #[instrument]
+    pub async fn run_command<T: Serialize + std::fmt::Debug>(
         &self,
         db: &str,
         payload: T,
@@ -631,6 +653,7 @@ impl DB {
         }
     }
 
+    #[instrument]
     pub async fn coll_index_stats(
         &self,
         database: &str,
@@ -664,6 +687,7 @@ impl DB {
         }
     }
 
+    #[instrument]
     pub async fn databases(&self) -> Result<Vec<String>> {
         log::debug!("Getting databases");
 

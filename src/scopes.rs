@@ -6,7 +6,7 @@ use std::fmt;
 use crate::error::Error as RestError;
 use crate::auth::Claims;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AuthorizeScope {
     noauth: bool,
     sub: String,

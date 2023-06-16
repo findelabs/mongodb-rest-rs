@@ -7,6 +7,7 @@ use axum::{
 use bson::{doc, to_document};
 use futures::Stream;
 use serde_json::{json, Value};
+use tracing::instrument;
 
 use mongodb::options::FindOptions;
 
@@ -16,6 +17,7 @@ use crate::queries::{ExplainFormat, QueriesFormat};
 use crate::scopes::AuthorizeScope;
 use crate::State;
 
+#[instrument]
 pub async fn find_explain(
     Extension(state): Extension<State>,
     Extension(scopes): Extension<AuthorizeScope>,
@@ -59,6 +61,7 @@ pub async fn find_explain(
     )))
 }
 
+#[instrument]
 pub async fn find_latest_ten(
     Extension(scopes): Extension<AuthorizeScope>,
     Extension(state): Extension<State>,
@@ -81,6 +84,7 @@ pub async fn find_latest_ten(
     state.db.find(&db, &coll, payload.into(), queries).await
 }
 
+#[instrument]
 pub async fn find_latest_one(
     Extension(scopes): Extension<AuthorizeScope>,
     Extension(state): Extension<State>,
@@ -103,6 +107,7 @@ pub async fn find_latest_one(
     state.db.find(&db, &coll, payload.into(), queries).await
 }
 
+#[instrument]
 pub async fn find(
     Extension(scopes): Extension<AuthorizeScope>,
     Extension(state): Extension<State>,
@@ -117,6 +122,7 @@ pub async fn find(
     state.db.find(&db, &coll, payload, queries).await
 }
 
+#[instrument]
 pub async fn count(
     Extension(scopes): Extension<AuthorizeScope>,
     Extension(state): Extension<State>,
@@ -133,6 +139,7 @@ pub async fn count(
     )))
 }
 
+#[instrument]
 pub async fn find_one(
     Extension(scopes): Extension<AuthorizeScope>,
     Extension(state): Extension<State>,
@@ -149,6 +156,7 @@ pub async fn find_one(
     )))
 }
 
+#[instrument]
 pub async fn distinct(
     Extension(scopes): Extension<AuthorizeScope>,
     Extension(state): Extension<State>,

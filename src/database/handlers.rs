@@ -12,12 +12,9 @@ pub async fn rs_status(
     Extension(state): Extension<State>,
     Extension(scopes): Extension<AuthorizeScope>,
 ) -> Result<Json<Value>, RestError> {
-    let tracer = global::tracer("GET /rs/status");
 
     // Validate that the client has access
-    let mut span = tracer.start("scopes.monitor");
     scopes.monitor(&"admin")?;
-    span.end();
 
     log::info!("{{\"fn\": \"rs_status\", \"method\":\"get\"}}");
 

@@ -20,7 +20,7 @@ pub struct QueriesName {
     pub name: String,
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateRole {
     #[serde(alias = "name")]
@@ -31,19 +31,19 @@ pub struct CreateRole {
     pub authentication_restrictions: Option<Vec<Restrictions>>,
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct Privileges {
     pub resource: String,
     pub actions: Vec<String>,
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct Roles {
     pub role: String,
     pub db: String,
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Restrictions {
     pub client_source: Vec<String>,
