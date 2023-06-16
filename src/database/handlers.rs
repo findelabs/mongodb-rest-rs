@@ -1,6 +1,8 @@
 use axum::{extract::Path, Extension, Json};
 use bson::{doc, to_bson, to_document};
 use serde_json::{json, Value};
+use opentelemetry::{Key, global};
+use opentelemetry::trace::{Span, Tracer};
 
 use crate::error::Error as RestError;
 use crate::scopes::AuthorizeScope;
@@ -10,8 +12,12 @@ pub async fn rs_status(
     Extension(state): Extension<State>,
     Extension(scopes): Extension<AuthorizeScope>,
 ) -> Result<Json<Value>, RestError> {
+    let tracer = global::tracer("GET /rs/status");
+
     // Validate that the client has access
+    let mut span = tracer.start("scopes.monitor");
     scopes.monitor(&"admin")?;
+    span.end();
 
     log::info!("{{\"fn\": \"rs_status\", \"method\":\"get\"}}");
 

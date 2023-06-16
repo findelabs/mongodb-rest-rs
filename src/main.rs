@@ -14,12 +14,9 @@ use std::net::SocketAddr;
 use tower_http::trace::TraceLayer;
 use jemallocator::Jemalloc;
 
-use opentelemetry::trace::Tracer;
 use opentelemetry::global::shutdown_tracer_provider;
-use opentelemetry::sdk::{trace::{self, RandomIdGenerator, Sampler}, Resource};
-use opentelemetry_datadog::{new_pipeline, ApiVersion, Error};
-
-use crate::error::Error as RestError;
+use opentelemetry::sdk::{trace::{self, RandomIdGenerator, Sampler}};
+use opentelemetry_datadog::{new_pipeline, ApiVersion};
 
 mod aggregate;
 mod auth;
@@ -148,7 +145,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
         .init();
 
     // Create opentelemetry
-    let tracer = new_pipeline()
+    let _tracer = new_pipeline()
         .with_service_name("mongodb-rest-rs")
         .with_api_version(ApiVersion::Version05)
         .with_agent_endpoint(format!("http://{}:8126", args.datadog_apm_ip))
@@ -163,7 +160,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     let state = State::new(args.clone()).await?;
 
     // Create JWKS auth state
-//    let replicaset = args.clone().replicaset.or(state.db.rs_set().await?);
     let auth_jwks = AuthJwks::new(args.clone(), state.db.rs_set().await?)?;
 
     // Create prometheus handle
@@ -237,13 +233,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     let addr = SocketAddr::from(([0, 0, 0, 0], args.port as u16));
     log::info!("Listening on {}", addr);
 
-    tracer.in_span("axum_server", |_cx| async {
-        // Traced app logic here...
-        axum::Server::bind(&addr)
-            .serve(app.into_make_service())
-            .await?;
-        Ok::<(), RestError>(())
-    }).await?;
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
+        .await?;
 
     shutdown_tracer_provider();
 

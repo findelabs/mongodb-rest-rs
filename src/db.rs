@@ -14,6 +14,8 @@ use mongodb::{
 };
 use serde::Serialize;
 use serde_json::{json, Value};
+use opentelemetry::{Key, global};
+use opentelemetry::trace::{Span, Tracer};
 
 use crate::aggregate::structs::Aggregate;
 use crate::delete::structs::DeleteOne;
@@ -601,6 +603,7 @@ impl DB {
         payload: T,
         makes_changes: bool,
     ) -> Result<Value> {
+        let tracer = global::tracer("db.run_command");
         if makes_changes && self.readonly {
             return Err(RestError::ReadOnly);
         }
@@ -608,6 +611,7 @@ impl DB {
 
         let database = self.client.database(&db);
 
+        let span = tracer.start("start");
         match database.run_command(to_document(&payload)?, None).await {
             Ok(mut output) => {
                 log::debug!("Successfully ran command against database");
