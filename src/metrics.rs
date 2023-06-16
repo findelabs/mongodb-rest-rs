@@ -28,10 +28,10 @@ pub fn setup_metrics_recorder() -> PrometheusHandle {
 
 pub async fn track_metrics<B>(req: Request<B>, next: Next<B>) -> impl IntoResponse {
     let tracer = global::tracer("request");
-    let mut span = tracer.start("start");
 
     let path = req.uri().path().to_owned();
     let method = req.method().clone();
+    let mut span = tracer.start(format!("{} {}", method.to_string(), path));
     span.set_attribute(Key::new("req.method").string(method.to_string()));
     span.set_attribute(Key::new("req.path").string(path));
 
@@ -40,6 +40,5 @@ pub async fn track_metrics<B>(req: Request<B>, next: Next<B>) -> impl IntoRespon
     span.set_attribute(Key::new("req.status").string(status));
 
     span.end();
-
     response
 }
