@@ -8,6 +8,8 @@ use bson::{doc, to_document};
 use futures::Stream;
 use serde_json::{json, Value};
 use tracing::instrument;
+use opentelemetry::Context;
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use mongodb::options::FindOptions;
 
@@ -25,6 +27,8 @@ pub async fn find_explain(
     queries: Query<ExplainFormat>,
     Json(payload): Json<Find>,
 ) -> Result<Json<Value>, RestError> {
+    let cx = Context::current();
+    tracing::Span::current().set_parent(cx);
     log::info!("{{\"fn\": \"find_explain\", \"method\":\"post\"}}");
 
     // Validate that the client has access to this database
@@ -68,6 +72,8 @@ pub async fn find_latest_ten(
     Path((db, coll)): Path<(String, String)>,
     queries: Query<QueriesFormat>,
 ) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
+    let cx = Context::current();
+    tracing::Span::current().set_parent(cx);
     // Validate that the client has access to this database
     scopes.read(&db)?;
 
@@ -91,6 +97,8 @@ pub async fn find_latest_one(
     Path((db, coll)): Path<(String, String)>,
     queries: Query<QueriesFormat>,
 ) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
+    let cx = Context::current();
+    tracing::Span::current().set_parent(cx);
     // Validate that the client has access to this database
     scopes.read(&db)?;
 
@@ -115,6 +123,9 @@ pub async fn find(
     queries: Query<QueriesFormat>,
     Json(payload): Json<Find>,
 ) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
+    let cx = Context::current();
+    tracing::Span::current().set_parent(cx);
+
     // Validate that the client has access to this database
     scopes.read(&db)?;
 
@@ -129,6 +140,8 @@ pub async fn count(
     Path((db, coll)): Path<(String, String)>,
     Json(payload): Json<Count>,
 ) -> Result<Json<Value>, RestError> {
+    let cx = Context::current();
+    tracing::Span::current().set_parent(cx);
     // Validate that the client has access to this database
     scopes.read(&db)?;
 
@@ -147,6 +160,8 @@ pub async fn find_one(
     queries: Query<QueriesFormat>,
     Json(payload): Json<FindOne>,
 ) -> Result<Json<Value>, RestError> {
+    let cx = Context::current();
+    tracing::Span::current().set_parent(cx);
     // Validate that the client has access to this database
     scopes.read(&db)?;
 
@@ -164,6 +179,8 @@ pub async fn distinct(
     queries: Query<QueriesFormat>,
     Json(payload): Json<Distinct>,
 ) -> Result<Json<Value>, RestError> {
+    let cx = Context::current();
+    tracing::Span::current().set_parent(cx);
     // Validate that the client has access to this database
     scopes.read(&db)?;
 
