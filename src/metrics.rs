@@ -4,7 +4,8 @@ use metrics_exporter_prometheus::{Matcher, PrometheusBuilder, PrometheusHandle};
 use metrics_util::MetricKindMask;
 
 use opentelemetry::{Key, global};
-use opentelemetry::trace::{Span, Tracer};
+use opentelemetry::trace::{Span, Tracer, FutureExt};
+use opentelemetry::Context;
 
 
 pub fn setup_metrics_recorder() -> PrometheusHandle {
@@ -36,7 +37,10 @@ pub async fn track_metrics<B>(req: Request<B>, next: Next<B>) -> impl IntoRespon
     span.set_attribute(Key::new("http.method").string(method.to_string()));
     span.set_attribute(Key::new("http.path").string(path));
 
-    let response = next.run(req).await;
+    let run = tracer.start("run");
+    let cx = Context::current_with_value(run);
+    let response = next.run(req).with_context(cx).await;
+
     let status = response.status().as_u16().to_string();
     span.set_attribute(Key::new("http.status_code").string(status));
 
