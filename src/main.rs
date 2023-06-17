@@ -13,10 +13,11 @@ use std::io::Write;
 use std::net::SocketAddr;
 use tower_http::trace::TraceLayer;
 use jemallocator::Jemalloc;
-
 use opentelemetry::global::shutdown_tracer_provider;
-use opentelemetry::sdk::{trace::{self, RandomIdGenerator, Sampler}};
-use opentelemetry_datadog::{new_pipeline, ApiVersion};
+use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_sdk::{runtime, trace as sdktrace, Resource};
+use opentelemetry_api::KeyValue;
+use axum_tracing_opentelemetry::opentelemetry_tracing_layer_grpc;
 
 mod aggregate;
 mod auth;
@@ -114,23 +115,23 @@ pub struct Args {
     )]
     audience: Option<String>,
 
-    /// Datadog APM IP
+    /// OTEL_ENDPOINT_IP
     #[arg(
         short,
         long,
         default_value = "localhost",
-        env = "DATADOG_APM_IP"
+        env = "OTEL_ENDPOINT_IP"
     )]
-    datadog_apm_ip: String,
+    otel_endpoint_ip: String,
 
-    /// Datadog APM Service Name
+    /// OTEL_SERVICE_NAME
     #[arg(
         short,
         long,
         default_value = "mongodb-rest-rs",
-        env = "DATADOG_APM_SERVICE_NAME"
+        env = "OTEL_SERVICE_NAME"
     )]
-    datadog_apm_service_name: String,
+    otel_service_name: String,
 }
 
 #[tokio::main]
@@ -152,18 +153,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
         .filter_level(LevelFilter::Info)
         .parse_default_env()
         .init();
-
-    // Create opentelemetry
-    let _tracer = new_pipeline()
-        .with_service_name(args.datadog_apm_service_name.clone())
-        .with_api_version(ApiVersion::Version05)
-        .with_agent_endpoint(format!("http://{}:8126", args.datadog_apm_ip))
-        .with_trace_config(
-            trace::config()
-                .with_sampler(Sampler::AlwaysOn)
-                .with_id_generator(RandomIdGenerator::default())
+    
+    // Initialize OTEL exporter
+    opentelemetry_otlp::new_pipeline()
+        .tracing()
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .tonic()
+                .with_endpoint(format!("http://{}:4317", args.otel_endpoint_ip)),
         )
-        .install_batch(opentelemetry::runtime::Tokio)?;
+        .with_trace_config(
+            sdktrace::config().with_resource(Resource::new(vec![KeyValue::new(
+                opentelemetry_semantic_conventions::resource::SERVICE_NAME,
+                args.otel_service_name.clone(),
+            )])),
+        )
+        .install_batch(runtime::Tokio)?;
 
     // Create state for axum
     let state = State::new(args.clone()).await?;
@@ -235,6 +240,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
         .route_layer(middleware::from_fn_with_state(auth_jwks.clone(), auth))
         .merge(standard)
         .route_layer(middleware::from_fn(track_metrics))
+        .layer(opentelemetry_tracing_layer_grpc())
         .fallback(handler_404)
         .layer(DefaultBodyLimit::max(16777216))
         .layer(Extension(state));
@@ -248,6 +254,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
 
     shutdown_tracer_provider();
 
-
     Ok(())
 }
+

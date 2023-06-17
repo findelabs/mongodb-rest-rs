@@ -14,9 +14,6 @@ use mongodb::{
 };
 use serde::Serialize;
 use serde_json::{json, Value};
-use opentelemetry::{Key, global};
-use opentelemetry::trace::{Span, Tracer};
-use opentelemetry_api::{trace::{self, TracerProvider}};
 use tracing::instrument;
 
 use crate::aggregate::structs::Aggregate;

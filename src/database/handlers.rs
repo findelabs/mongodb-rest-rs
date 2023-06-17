@@ -1,8 +1,6 @@
 use axum::{extract::Path, Extension, Json};
 use bson::{doc, to_bson, to_document};
 use serde_json::{json, Value};
-use opentelemetry::{Key, global};
-use opentelemetry::trace::{Span, Tracer};
 
 use crate::error::Error as RestError;
 use crate::scopes::AuthorizeScope;

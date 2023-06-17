@@ -3,10 +3,6 @@ use core::time::Duration;
 use metrics_exporter_prometheus::{Matcher, PrometheusBuilder, PrometheusHandle};
 use metrics_util::MetricKindMask;
 
-use opentelemetry::{Key, global};
-use opentelemetry::trace::{Span, Tracer, FutureExt};
-use opentelemetry::Context;
-
 
 pub fn setup_metrics_recorder() -> PrometheusHandle {
     const EXPONENTIAL_SECONDS: &[f64] = &[
@@ -28,22 +24,10 @@ pub fn setup_metrics_recorder() -> PrometheusHandle {
 }
 
 pub async fn track_metrics<B>(req: Request<B>, next: Next<B>) -> impl IntoResponse {
-    let tracer = global::tracer("request");
 
-    let path = req.uri().path().to_owned();
-    let method = req.method().clone();
-    let mut span = tracer.start(format!("{} {}", method.to_string(), path));
-    span.set_attribute(Key::new("span.type").string("web"));
-    span.set_attribute(Key::new("http.method").string(method.to_string()));
-    span.set_attribute(Key::new("http.path").string(path));
-
-    let run = tracer.start("run");
-    let cx = Context::current_with_value(run);
-    let response = next.run(req).with_context(cx).await;
-
-    let status = response.status().as_u16().to_string();
-    span.set_attribute(Key::new("http.status_code").string(status));
-
-    span.end();
+    let _path = req.uri().path().to_owned();
+    let _method = req.method().clone();
+    let response = next.run(req).await;
+    let _status = response.status().as_u16().to_string();
     response
 }
