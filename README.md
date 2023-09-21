@@ -136,7 +136,7 @@ POST /:db/collection/:coll/_count
 GET /:db/collection/:coll/_indexes[?simple]
 
 # Get collection index stats
-GET /:db/collection/:coll/_index_stats
+GET /:db/collection/:coll/_indexes/stats
 
 # Get collection stats
 GET /:db/collection/:coll/_stats
