@@ -109,16 +109,16 @@ GET /rs/pool
 ### Collection Info and Search
 ``` 
 # Get database stats
-GET /:db/_stats
+GET /db/:db/_stats
 
 # Get database collections
-GET /:db
+GET /db/:db
 
 # Get collection document count
-GET /:db/collection/:coll/_count
+GET /db/:db/collection/:coll/_count
 
 # Get collection document count with filter
-POST /:db/collection/:coll/_count
+POST /db/:db/collection/:coll/_count
 { 
   "filter": {},
   "options": {
@@ -133,19 +133,19 @@ POST /:db/collection/:coll/_count
 }
 
 # Get collection indexes
-GET /:db/collection/:coll/_indexes[?simple]
+GET /db/:db/collection/:coll/_indexes[?simple]
 
 # Get collection index stats
-GET /:db/collection/:coll/_indexes/stats
+GET /db/:db/collection/:coll/_indexes/stats
 
 # Get collection stats
-GET /:db/collection/:coll/_stats
+GET /db/:db/collection/:coll/_stats
 
 # Get most recent doc
-GET /:db/collection/:coll/_find_one
+GET /db/:db/collection/:coll/_find_one
 
 # Find a document
-POST /:db/collection/:coll/_find_one[?format=json|ejson]
+POST /db/:db/collection/:coll/_find_one[?format=json|ejson]
 {
   "filter": {},
   "options": {
@@ -169,11 +169,11 @@ POST /:db/collection/:coll/_find_one[?format=json|ejson]
 }
 
 # Get ten most recent docs
-GET /:db/collection/:coll
-GET /:db/collection/:coll/_find
+GET /db/:db/collection/:coll
+GET /db/:db/collection/:coll/_find
 
 # Find multiple documents
-POST /:db/collection/:coll/_find[?format=json|ejson]
+POST /db/:db/collection/:coll/_find[?format=json|ejson]
 {
   "filter": {},
   "options": {
@@ -203,7 +203,7 @@ POST /:db/collection/:coll/_find[?format=json|ejson]
 }
 
 # Aggregation
-POST /:db/collection/:coll/_aggregate[?format=json|ejson] 
+POST /db/:db/collection/:coll/_aggregate[?format=json|ejson] 
 {
   "pipeline": [{}],
   "options": {
@@ -222,7 +222,7 @@ POST /:db/collection/:coll/_aggregate[?format=json|ejson]
 }
 
 # Distinct
-POST /:db/collection/:coll/_distinct
+POST /db/:db/collection/:coll/_distinct
 {
   "field_name": String,
   "filter": {},
@@ -230,10 +230,10 @@ POST /:db/collection/:coll/_distinct
 }
 
 # Watch collection for changes
-GET /:db/collection/:coll/_watch
+GET /db/:db/collection/:coll/_watch
 
 # Watch collection for changes, with pipeline
-POST /:db/collection/:coll/_watch
+POST /db/:db/collection/:coll/_watch
 {
   "pipeline": [{}],
   "options": {
@@ -255,7 +255,7 @@ POST /:db/collection/:coll/_watch
 ### Collection CRUD Operations
 ```
 # Create index
-POST /:db/collection/:coll/_indexes
+POST /db/:db/collection/:coll/_indexes
 {
   "keys": {}
   "options": {
@@ -283,18 +283,18 @@ POST /:db/collection/:coll/_indexes
 }
 
 # Delete index
-DELETE /:db/collection/:coll/_indexes/:index
+DELETE /db/:db/collection/:coll/_indexes/:index
 
 # Insert one doc
-POST /:db/collection/:coll/_insert[bypass_document_validation=bool, w=string, n=u32, w_timeout=u32, journal=bool, comment=string]
+POST /db/:db/collection/:coll/_insert[bypass_document_validation=bool, w=string, n=u32, w_timeout=u32, journal=bool, comment=string]
 {}
 
 # Insert one doc
-POST /:db/collection/:coll/_insert[bypass_document_validation=bool, ordered=bool, w=string, n=u32, w_timeout=u32, journal=bool, comment=string]
+POST /db/:db/collection/:coll/_insert[bypass_document_validation=bool, ordered=bool, w=string, n=u32, w_timeout=u32, journal=bool, comment=string]
 [{}]
 
 # Delete one document
-POST /:db/collection/:coll/_delete_one
+POST /db/:db/collection/:coll/_delete_one
 {
   "filter": {},
   "options": {
@@ -307,7 +307,7 @@ POST /:db/collection/:coll/_delete_one
 }
 
 # Delete many documents
-POST /:db/collection/:coll/_delete_many
+POST /db/:db/collection/:coll/_delete_many
 {
   "filter": {},
   "options": {
@@ -320,7 +320,7 @@ POST /:db/collection/:coll/_delete_many
 }
 
 # Update one document
-POST /:db/collection/:coll/_update_one
+POST /db/:db/collection/:coll/_update_one
 {
   "filter": {},
   "update": {},
@@ -337,7 +337,7 @@ POST /:db/collection/:coll/_update_one
 }
 
 # Update many documents
-POST /:db/collection/:coll/_update
+POST /db/:db/collection/:coll/_update
 {
   "filter": {},
   "update": {},
@@ -353,13 +353,13 @@ POST /:db/collection/:coll/_update
   }
   
 # Get database roles
-GET /:db/_roles
+GET /db/:db/_roles
 
 # Get single database role
-GET /:db/_roles/:role
+GET /db/:db/_roles/:role
 
 # Create new database role
-POST /:db/_roles
+POST /db/:db/_roles
 {
   "name": String,
   "privileges": [{
@@ -373,13 +373,13 @@ POST /:db/_roles
 }
 
 # Delete role
-DELETE /:db/_roles/:role
+DELETE /db/:db/_roles/:role
 ```
 
 ### Future
 ``` 
 # ReplaceOne
-POST /:db/collection/:coll/_replace_one
+POST /db/:db/collection/:coll/_replace_one
 {
   "filter": {},
   "replacement": {},
