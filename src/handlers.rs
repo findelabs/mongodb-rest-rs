@@ -7,7 +7,7 @@ use serde_json::Value;
 use crate::state::State;
 
 pub async fn health(Extension(state): Extension<State>) -> impl IntoResponse {
-    log::info!("{{\"fn\": \"health\", \"method\":\"get\"}}");
+    log::info!("{{\"fn\": \"health\"}}");
     if state.db.databases().await.is_err() {
         (
             StatusCode::SERVICE_UNAVAILABLE,
@@ -19,7 +19,7 @@ pub async fn health(Extension(state): Extension<State>) -> impl IntoResponse {
 }
 
 pub async fn root() -> Json<Value> {
-    log::info!("{{\"fn\": \"root\", \"method\":\"get\"}}");
+    log::info!("{{\"fn\": \"root\"}}");
     Json(
         json!({ "version": crate_version!(), "name": crate_name!(), "description": crate_description!()}),
     )

@@ -25,7 +25,7 @@ pub async fn aggregate(
     // Validate that the client has access to this database
     scopes.write(&db)?;
 
-    log::info!("{{\"fn\": \"aggregate\", \"method\":\"post\"}}");
+    log::info!("{{\"fn\": \"aggregate\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
     state.db.aggregate(&db, &coll, payload, queries).await
 }
 
@@ -39,7 +39,7 @@ pub async fn aggregate_explain(
     // Validate that the client has access to this database
     scopes.write(&db)?;
 
-    log::info!("{{\"fn\": \"aggregate_explain\", \"method\":\"post\"}}");
+    log::info!("{{\"fn\": \"aggregate_explain\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
 
     let aggregate_raw = AggregateRaw {
         aggregate: coll.to_string(),

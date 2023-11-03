@@ -19,7 +19,7 @@ pub async fn insert_many(
     // Validate that the client has access to this database
     scopes.write(&db)?;
 
-    log::info!("{{\"fn\": \"insert\", \"method\":\"post\"}}");
+    log::info!("{{\"fn\": \"insert\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
     Ok(Json(json!(
         state.db.insert_many(&db, &coll, body, queries).await?
     )))
@@ -35,7 +35,7 @@ pub async fn insert_one(
     // Validate that the client has access to this database
     scopes.write(&db)?;
 
-    log::info!("{{\"fn\": \"insert_one\", \"method\":\"post\"}}");
+    log::info!("{{\"fn\": \"insert_one\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
     Ok(Json(json!(
         state.db.insert_one(&db, &coll, body, queries).await?
     )))

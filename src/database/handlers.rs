@@ -13,7 +13,7 @@ pub async fn rs_status(
     // Validate that the client has access
     scopes.monitor(&"admin")?;
 
-    log::info!("{{\"fn\": \"rs_status\", \"method\":\"get\"}}");
+    log::info!("{{\"fn\": \"rs_status\"}}");
 
     let payload = doc! { "replSetGetStatus": 1};
 
@@ -29,7 +29,7 @@ pub async fn rs_log(
     // Validate that the client has access
     scopes.monitor(&"admin")?;
 
-    log::info!("{{\"fn\": \"rs_log\", \"method\":\"get\"}}");
+    log::info!("{{\"fn\": \"rs_log\"}}");
     let payload = doc! { "getLog": "global"};
 
     Ok(Json(json!(
@@ -44,7 +44,7 @@ pub async fn rs_operations(
     // Validate that the client has access
     scopes.monitor(&"admin")?;
 
-    log::info!("{{\"fn\": \"rs_operations\", \"method\":\"get\"}}");
+    log::info!("{{\"fn\": \"rs_operations\"}}");
     let payload = doc! { "currentOp": 1};
     let response = state.db.run_command(&"admin", payload, false).await?;
 
@@ -78,7 +78,7 @@ pub async fn rs_stats(
     // Validate that the client has access
     scopes.monitor(&"admin")?;
 
-    log::info!("{{\"fn\": \"rs_stats\", \"method\":\"get\"}}");
+    log::info!("{{\"fn\": \"rs_stats\"}}");
     let payload = doc! { "serverStatus": 1};
     Ok(Json(json!(
         state.db.run_command(&"admin", payload, false).await?
@@ -92,7 +92,7 @@ pub async fn rs_top(
     // Validate that the client has access
     scopes.monitor(&"admin")?;
 
-    log::info!("{{\"fn\": \"rs_top\", \"method\":\"get\"}}");
+    log::info!("{{\"fn\": \"rs_top\"}}");
     let payload = doc! { "top": 1};
     Ok(Json(json!(
         state.db.run_command(&"admin", payload, false).await?
@@ -106,7 +106,7 @@ pub async fn rs_conn(
     // Validate that the client has access
     scopes.monitor(&"admin")?;
 
-    log::info!("{{\"fn\": \"rs_conn\", \"method\":\"get\"}}");
+    log::info!("{{\"fn\": \"rs_conn\"}}");
     let payload = doc! { "connectionStatus": 1};
     Ok(Json(json!(
         state.db.run_command(&"admin", payload, false).await?
@@ -120,7 +120,7 @@ pub async fn rs_pool(
     // Validate that the client has access
     scopes.monitor(&"admin")?;
 
-    log::info!("{{\"fn\": \"rs_pool\", \"method\":\"get\"}}");
+    log::info!("{{\"fn\": \"rs_pool\"}}");
     let payload = doc! { "connPoolStats": 1};
     Ok(Json(json!(
         state.db.run_command(&"admin", payload, false).await?
@@ -135,7 +135,7 @@ pub async fn db_stats(
     // Validate that the client has access
     scopes.monitor(&db)?;
 
-    log::info!("{{\"fn\": \"db_stats\", \"method\":\"get\"}}");
+    log::info!("{{\"fn\": \"db_stats\", \"db\":\"{}\"}}", &db);
     let payload = doc! { "dbStats": 1};
     Ok(Json(json!(
         state.db.run_command(&db, payload, false).await?
@@ -150,7 +150,7 @@ pub async fn coll_stats(
     // Validate that the client has access
     scopes.monitor(&db)?;
 
-    log::info!("{{\"fn\": \"coll_stats\", \"method\":\"get\"}}");
+    log::info!("{{\"fn\": \"coll_stats\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
     let payload = doc! { "collStats": coll};
     Ok(Json(json!(
         state.db.run_command(&db, payload, false).await?
@@ -162,7 +162,7 @@ pub async fn databases(
     Extension(scopes): Extension<AuthorizeScope>,
 ) -> Result<Json<Value>, RestError> {
     // If we got this far, the user is at least authenticated to the cluster
-    log::info!("{{\"fn\": \"databases\", \"method\":\"get\"}}");
+    log::info!("{{\"fn\": \"databases\"}}");
 
     // This needs to check for admin monitor, and if that fails, return the db's the client has access to
     if scopes.read(&"admin").is_ok() {
@@ -180,7 +180,7 @@ pub async fn db_colls(
     // Validate that the client has access
     scopes.read(&db)?;
 
-    log::info!("{{\"fn\": \"db_colls\", \"method\":\"get\"}}");
+    log::info!("{{\"fn\": \"db_colls\", \"db\":\"{}\"}}", &db);
     Ok(Json(json!(state.db.collections(&db).await?)))
 }
 
@@ -192,13 +192,13 @@ pub async fn coll_count(
     // Validate that the client has access
     scopes.read(&db)?;
 
-    log::info!("{{\"fn\": \"coll_count\", \"method\":\"get\"}}");
+    log::info!("{{\"fn\": \"coll_count\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
     Ok(Json(json!(state.db.coll_count(&db, &coll).await?)))
 }
 
 pub async fn token_roles(
     Extension(scopes): Extension<AuthorizeScope>,
 ) -> Result<Json<Value>, RestError> {
-    log::info!("{{\"fn\": \"roles\", \"method\":\"get\"}}");
+    log::info!("{{\"fn\": \"roles\"}}");
     Ok(Json(json!(scopes.roles())))
 }

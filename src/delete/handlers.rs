@@ -15,7 +15,7 @@ pub async fn delete_many(
     // Validate that the client has access to this database
     scopes.write(&db)?;
 
-    log::info!("{{\"fn\": \"delete_many\", \"method\":\"post\"}}");
+    log::info!("{{\"fn\": \"delete_many\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
     Ok(Json(json!(
         state.db.delete_many(&db, &coll, payload).await?
     )))
@@ -30,6 +30,6 @@ pub async fn delete_one(
     // Validate that the client has access to this database
     scopes.write(&db)?;
 
-    log::info!("{{\"fn\": \"delete_one\", \"method\":\"post\"}}");
+    log::info!("{{\"fn\": \"delete_one\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
     Ok(Json(json!(state.db.delete_one(&db, &coll, payload).await?)))
 }

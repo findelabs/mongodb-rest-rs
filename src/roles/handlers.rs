@@ -59,7 +59,7 @@ pub async fn get_roles(
     // Validate that the client has access to this database
     scopes.dbadmin(&db)?;
 
-    log::info!("{{\"fn\": \"get_roles\", \"method\":\"get\"}}");
+    log::info!("{{\"fn\": \"get_roles\", \"db\":\"{}\"}}", &db);
     let payload = Find {
         filter: doc! {},
         options: None,
@@ -78,7 +78,7 @@ pub async fn create_role(
     // Validate that the client has access to this database
     scopes.dbadmin(&db)?;
 
-    log::info!("{{\"fn\": \"create_role\", \"method\":\"post\"}}");
+    log::info!("{{\"fn\": \"create_role\", \"db\":\"{}\"}}", &db);
     Ok(Json(json!(state.db.run_command(&db, payload, true).await?)))
 }
 
@@ -90,7 +90,7 @@ pub async fn drop_role(
     // Validate that the client has access to this database
     scopes.dbadmin(&db)?;
 
-    log::info!("{{\"fn\": \"drop_role\", \"method\":\"post\"}}");
+    log::info!("{{\"fn\": \"drop_role\", \"db\":\"{}\", \"role\":\"{}\"}}", &db, &role);
 
     let payload = doc! {"dropRole": role};
 
@@ -106,7 +106,7 @@ pub async fn get_role(
     // Validate that the client has access to this database
     scopes.dbadmin(&db)?;
 
-    log::info!("{{\"fn\": \"get_role\", \"method\":\"get\"}}");
+    log::info!("{{\"fn\": \"get_role\", \"db\":\"{}\", \"role\":\"{}\"}}", &db, &name);
     let payload = Find {
         filter: doc! {"role": &name},
         options: None,

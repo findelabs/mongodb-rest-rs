@@ -15,7 +15,7 @@ pub async fn update_one(
     // Validate that the client has access to this database
     scopes.write(&db)?;
 
-    log::info!("{{\"fn\": \"update_one\", \"method\":\"post\"}}");
+    log::info!("{{\"fn\": \"update_one\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
     Ok(Json(json!(state.db.update_one(&db, &coll, payload).await?)))
 }
 
@@ -28,7 +28,7 @@ pub async fn update_many(
     // Validate that the client has access to this database
     scopes.write(&db)?;
 
-    log::info!("{{\"fn\": \"update_many\", \"method\":\"post\"}}");
+    log::info!("{{\"fn\": \"update_many\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
     Ok(Json(json!(
         state.db.update_many(&db, &coll, payload).await?
     )))

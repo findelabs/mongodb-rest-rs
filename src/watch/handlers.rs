@@ -23,7 +23,7 @@ pub async fn watch(
     // Validate that the client has access to this database
     scopes.read(&db)?;
 
-    log::info!("{{\"fn\": \"watch\", \"method\":\"post\"}}");
+    log::info!("{{\"fn\": \"watch\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
     state.db.watch(&db, &coll, payload, queries).await
 }
 
@@ -36,7 +36,7 @@ pub async fn watch_latest(
     // Validate that the client has access to this database
     scopes.read(&db)?;
 
-    log::info!("{{\"fn\": \"watch\", \"method\":\"get\"}}");
+    log::info!("{{\"fn\": \"watch\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
     let payload = Watch {
         pipeline: vec![doc! {"$match":{}}],
         options: None,
