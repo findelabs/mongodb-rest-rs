@@ -11,6 +11,7 @@ RUN cargo install --path /app --root /app
 RUN strip app/bin/mongodb-rest-rs
 
 FROM debian:bookworm-slim
+RUN apt-get update && apt install -y openssl
 WORKDIR /app
 COPY --from=builder /app/bin/ ./
 
