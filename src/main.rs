@@ -207,7 +207,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .layer(Extension(state));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], args.port as u16));
-    log::info!("Listening on {}", addr);
+    log::info!("\"Listening on {}\"", addr);
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .await?;
