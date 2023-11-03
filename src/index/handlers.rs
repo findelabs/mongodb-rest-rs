@@ -16,7 +16,7 @@ pub async fn index_delete(
     Path((db, coll)): Path<(String, String)>,
     queries: Query<QueriesDelete>,
 ) -> Result<Json<Value>, RestError> {
-    log::info!("{{\"fn\": \"index_create\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
+    log::info!("{{\"fn\": \"index_create\", \"db\": \"{}\", \"coll\": \"{}\"}}", &db, &coll);
     Ok(Json(json!(
         state.db.index_delete(&db, &coll, &queries).await?
     )))
@@ -27,7 +27,7 @@ pub async fn index_create(
     Path((db, coll)): Path<(String, String)>,
     Json(payload): Json<Index>,
 ) -> Result<Json<Value>, RestError> {
-    log::info!("{{\"fn\": \"index_create\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
+    log::info!("{{\"fn\": \"index_create\", \"db\": \"{}\", \"coll\": \"{}\"}}", &db, &coll);
     Ok(Json(json!(
         state.db.index_create(&db, &coll, payload).await?
     )))
@@ -38,7 +38,7 @@ pub async fn indexes(
     queries: Query<QueriesFormat>,
     Path((db, coll)): Path<(String, String)>,
 ) -> Result<Json<Value>, RestError> {
-    log::info!("{{\"fn\": \"coll_indexes\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
+    log::info!("{{\"fn\": \"coll_indexes\", \"db\": \"{}\", \"coll\": \"{}\"}}", &db, &coll);
     Ok(Json(json!(
         state.db.coll_indexes(&db, &coll, &queries).await?
     )))
@@ -48,6 +48,6 @@ pub async fn index_stats(
     Extension(state): Extension<State>,
     Path((db, coll)): Path<(String, String)>,
 ) -> Result<StreamBody<impl Stream<Item = Result<Bytes, RestError>>>, RestError> {
-    log::info!("{{\"fn\": \"coll_indexes\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
+    log::info!("{{\"fn\": \"coll_indexes\", \"db\": \"{}\", \"coll\": \"{}\"}}", &db, &coll);
     state.db.coll_index_stats(&db, &coll).await
 }

@@ -135,7 +135,7 @@ pub async fn db_stats(
     // Validate that the client has access
     scopes.monitor(&db)?;
 
-    log::info!("{{\"fn\": \"db_stats\", \"db\":\"{}\"}}", &db);
+    log::info!("{{\"fn\": \"db_stats\", \"db\": \"{}\"}}", &db);
     let payload = doc! { "dbStats": 1};
     Ok(Json(json!(
         state.db.run_command(&db, payload, false).await?
@@ -150,7 +150,7 @@ pub async fn coll_stats(
     // Validate that the client has access
     scopes.monitor(&db)?;
 
-    log::info!("{{\"fn\": \"coll_stats\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
+    log::info!("{{\"fn\": \"coll_stats\", \"db\": \"{}\", \"coll\": \"{}\"}}", &db, &coll);
     let payload = doc! { "collStats": coll};
     Ok(Json(json!(
         state.db.run_command(&db, payload, false).await?
@@ -180,7 +180,7 @@ pub async fn db_colls(
     // Validate that the client has access
     scopes.read(&db)?;
 
-    log::info!("{{\"fn\": \"db_colls\", \"db\":\"{}\"}}", &db);
+    log::info!("{{\"fn\": \"db_colls\", \"db\": \"{}\"}}", &db);
     Ok(Json(json!(state.db.collections(&db).await?)))
 }
 
@@ -192,7 +192,7 @@ pub async fn coll_count(
     // Validate that the client has access
     scopes.read(&db)?;
 
-    log::info!("{{\"fn\": \"coll_count\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
+    log::info!("{{\"fn\": \"coll_count\", \"db\": \"{}\", \"coll\": \"{}\"}}", &db, &coll);
     Ok(Json(json!(state.db.coll_count(&db, &coll).await?)))
 }
 

@@ -23,7 +23,7 @@ pub async fn find_explain(
     queries: Query<ExplainFormat>,
     Json(payload): Json<Find>,
 ) -> Result<Json<Value>, RestError> {
-    log::info!("{{\"fn\": \"find_explain\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
+    log::info!("{{\"fn\": \"find_explain\", \"db\": \"{}\", \"coll\": \"{}\"}}", &db, &coll);
 
     // Validate that the client has access to this database
     scopes.read(&db)?;
@@ -68,7 +68,7 @@ pub async fn find_latest_ten(
     // Validate that the client has access to this database
     scopes.read(&db)?;
 
-    log::info!("{{\"fn\": \"find\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
+    log::info!("{{\"fn\": \"find\", \"db\": \"{}\", \"coll\": \"{}\"}}", &db, &coll);
     let payload = Find {
         filter: doc! {},
         options: Some(
@@ -90,7 +90,7 @@ pub async fn find_latest_one(
     // Validate that the client has access to this database
     scopes.read(&db)?;
 
-    log::info!("{{\"fn\": \"find\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
+    log::info!("{{\"fn\": \"find\", \"db\": \"{}\", \"coll\": \"{}\"}}", &db, &coll);
     let payload = Find {
         filter: doc! {},
         options: Some(
@@ -113,7 +113,7 @@ pub async fn find(
     // Validate that the client has access to this database
     scopes.read(&db)?;
 
-    log::info!("{{\"fn\": \"find\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
+    log::info!("{{\"fn\": \"find\", \"db\": \"{}\", \"coll\": \"{}\"}}", &db, &coll);
     state.db.find(&db, &coll, payload, queries).await
 }
 
@@ -126,7 +126,7 @@ pub async fn count(
     // Validate that the client has access to this database
     scopes.read(&db)?;
 
-    log::info!("{{\"fn\": \"find_one\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
+    log::info!("{{\"fn\": \"find_one\", \"db\": \"{}\", \"coll\": \"{}\"}}", &db, &coll);
     
     Ok(Json(json!(
         state.db.count(&db, &coll, payload).await?
@@ -143,7 +143,7 @@ pub async fn find_one(
     // Validate that the client has access to this database
     scopes.read(&db)?;
 
-    log::info!("{{\"fn\": \"find_one\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
+    log::info!("{{\"fn\": \"find_one\", \"db\": \"{}\", \"coll\": \"{}\"}}", &db, &coll);
     Ok(Json(json!(
         state.db.find_one(&db, &coll, payload, &queries).await?
     )))
@@ -159,7 +159,7 @@ pub async fn distinct(
     // Validate that the client has access to this database
     scopes.read(&db)?;
 
-    log::info!("{{\"fn\": \"distinct\", \"db\":\"{}\", \"coll\":\"{}\"}}", &db, &coll);
+    log::info!("{{\"fn\": \"distinct\", \"db\": \"{}\", \"coll\": \"{}\"}}", &db, &coll);
     Ok(Json(json!(
         state.db.distinct(&db, &coll, payload, &queries).await?
     )))
