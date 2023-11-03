@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y libssl-dev pkg-config make
 RUN cargo install --path /app --root /app
 RUN strip app/bin/mongodb-rest-rs
 
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 WORKDIR /app
 COPY --from=builder /app/bin/ ./
 
