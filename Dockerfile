@@ -1,4 +1,4 @@
-from rust:slim as builder
+from rust:bookworm as builder
 
 RUN mkdir /app 
 RUN mkdir /app/bin 
