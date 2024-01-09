@@ -13,6 +13,7 @@ pub struct CustomInsertManyOptions {
     pub w_timeout: Option<Duration>,
     pub journal: Option<bool>,
     pub comment: Option<Bson>,
+    pub inject_time_field: Option<String>
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -24,6 +25,7 @@ pub struct CustomInsertOneOptions {
     pub w_timeout: Option<Duration>,
     pub journal: Option<bool>,
     pub comment: Option<Bson>,
+    pub inject_time_field: Option<String>
 }
 
 impl From<CustomInsertManyOptions> for InsertManyOptions {

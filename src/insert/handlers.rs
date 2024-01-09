@@ -2,6 +2,7 @@ use axum::{
     extract::{Path, Query},
     Extension, Json,
 };
+use bson::Document;
 use serde_json::{json, Value};
 
 use crate::error::Error as RestError;
@@ -14,7 +15,7 @@ pub async fn insert_many(
     Extension(scopes): Extension<AuthorizeScope>,
     Path((db, coll)): Path<(String, String)>,
     queries: Query<CustomInsertManyOptions>,
-    Json(body): Json<Vec<Value>>,
+    Json(body): Json<Vec<Document>>,
 ) -> Result<Json<Value>, RestError> {
     // Validate that the client has access to this database
     scopes.write(&db)?;
@@ -30,7 +31,7 @@ pub async fn insert_one(
     Extension(scopes): Extension<AuthorizeScope>,
     Path((db, coll)): Path<(String, String)>,
     queries: Query<CustomInsertOneOptions>,
-    Json(body): Json<Value>,
+    Json(body): Json<Document>,
 ) -> Result<Json<Value>, RestError> {
     // Validate that the client has access to this database
     scopes.write(&db)?;

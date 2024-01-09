@@ -3,6 +3,7 @@ use axum::body::Bytes;
 use axum::body::StreamBody;
 use axum::extract::Query;
 use core::time::Duration;
+use chrono::Utc;
 use futures::stream::StreamExt;
 use futures::Stream;
 use mongodb::bson::{doc, document::Document, to_bson, to_document};
@@ -238,7 +239,7 @@ impl DB {
         &self,
         database: &str,
         collection: &str,
-        body: Vec<Value>,
+        mut body: Vec<Document>,
         queries: Query<CustomInsertManyOptions>,
     ) -> Result<Value> {
         if self.readonly {
@@ -250,7 +251,14 @@ impl DB {
         let collection = self
             .client
             .database(database)
-            .collection::<Value>(collection);
+            .collection::<Document>(collection);
+
+        if let Some(ref field) = queries.0.inject_time_field {
+            let now = Utc::now();
+            for doc in &mut body {
+                doc.insert(field, now);
+            }
+        };
 
         let options: InsertManyOptions = queries.0.into();
 
@@ -271,7 +279,7 @@ impl DB {
         &self,
         database: &str,
         collection: &str,
-        body: Value,
+        mut body: Document,
         queries: Query<CustomInsertOneOptions>,
     ) -> Result<Value> {
         if self.readonly {
@@ -283,7 +291,12 @@ impl DB {
         let collection = self
             .client
             .database(database)
-            .collection::<Value>(collection);
+            .collection::<Document>(collection);
+
+        if let Some(ref field) = queries.0.inject_time_field {
+            let now = Utc::now();
+            body.insert(field, now);
+        };
 
         let options: InsertOneOptions = queries.0.into();
 

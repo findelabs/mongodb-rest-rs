@@ -1,6 +1,6 @@
 [package]
 name = "mongodb-rest-rs"
-version = "0.3.5"
+version = "0.3.11"
 authors = ["Verticaleap"]
 edition = "2021"
 
@@ -34,7 +34,7 @@ bytes = "0.5"
 mongodb = "2"
 futures = { version = "0.3.4", default-features = false, features = ["async-await"] }
 futures-util = "0.3"
-bson = "2"
+bson = { version = "2", features = ["chrono-0_4"] }
 rust_tools = { git = "https://github.com/findelabs/rust-tools.git", branch = "master" }
 axum-macros = "0.3"
 http = "0.2"
