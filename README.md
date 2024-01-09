@@ -286,11 +286,11 @@ POST /db/:db/collection/:coll/_indexes
 DELETE /db/:db/collection/:coll/_indexes/:index
 
 # Insert one doc
-POST /db/:db/collection/:coll/_insert[bypass_document_validation=bool, w=string, n=u32, w_timeout=u32, journal=bool, comment=string]
+POST /db/:db/collection/:coll/_insert[bypass_document_validation=bool, w=string, n=u32, w_timeout=u32, journal=bool, comment=string, inject_time_field=string]
 {}
 
-# Insert one doc
-POST /db/:db/collection/:coll/_insert[bypass_document_validation=bool, ordered=bool, w=string, n=u32, w_timeout=u32, journal=bool, comment=string]
+# Insert multiple docs
+POST /db/:db/collection/:coll/_insert_many[bypass_document_validation=bool, ordered=bool, w=string, n=u32, w_timeout=u32, journal=bool, comment=string, inject_time_field=string]
 [{}]
 
 # Delete one document
