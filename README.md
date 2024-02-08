@@ -104,6 +104,12 @@ GET /rs/conn
 
 # Get connection pool info
 GET /rs/pool
+
+# Get replicaset config
+GET /rs/config
+
+# Get lockinfo on cluster
+GET /rs/lockinfo
 ```
 
 ### Collection Info and Search
