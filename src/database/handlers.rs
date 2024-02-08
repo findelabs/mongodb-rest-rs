@@ -22,6 +22,22 @@ pub async fn rs_status(
     )))
 }
 
+pub async fn host_info(
+    Extension(state): Extension<State>,
+    Extension(scopes): Extension<AuthorizeScope>,
+) -> Result<Json<Value>, RestError> {
+    // Validate that the client has access
+    scopes.monitor(&"admin")?;
+
+    log::info!("{{\"fn\": \"lock_info\"}}");
+
+    let payload = doc! { "hostInfo": 1 };
+
+    Ok(Json(json!(
+        state.db.run_command(&"admin", payload, false).await?
+    )))
+}
+
 pub async fn rs_config(
     Extension(state): Extension<State>,
     Extension(scopes): Extension<AuthorizeScope>,

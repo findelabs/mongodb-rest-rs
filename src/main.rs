@@ -40,7 +40,7 @@ use aggregate::handlers::{aggregate, aggregate_explain};
 use auth::{auth, AuthJwks};
 use database::handlers::{
     coll_count, coll_stats, databases, db_colls, db_stats, rs_conn, rs_log, rs_operations, rs_pool,
-    rs_stats, rs_status, rs_top, token_roles, lock_info, rs_config
+    rs_stats, rs_status, rs_top, token_roles, lock_info, rs_config, host_info
 };
 use delete::handlers::{delete_many, delete_one};
 use find::handlers::{distinct, find, find_explain, find_latest_one, find_latest_ten, find_one, count};
@@ -146,6 +146,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .route("/rs/config", get(rs_config))
         .route("/rs/log", get(rs_log))
         .route("/rs/lockinfo", get(lock_info))
+        .route("/rs/hostinfo", get(host_info))
         .route("/rs/ops", get(rs_operations))
         .route("/rs/stats", get(rs_stats))
         .route("/rs/dbs", get(databases))
